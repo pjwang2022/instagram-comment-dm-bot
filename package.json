@@ -1,0 +1,39 @@
+{
+  "name": "ig-comment-dm-bot",
+  "private": true,
+  "description": "Instagram 留言關鍵字自動私訊系統（IG Comment DM Bot），採 Monstrare 治理工作流開發。",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "kanban": "node tools/kanban/server.mjs",
+    "dev": "wrangler dev",
+    "build": "npm run build --prefix admin && wrangler deploy --dry-run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p scripts/tsconfig.json && npm run typecheck --prefix admin",
+    "create-admin": "tsx scripts/create-admin.ts",
+    "check-meta": "tsx scripts/check-meta.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.32"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@eslint/js": "^9.39.5",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.8.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.86.0"
+  }
+}

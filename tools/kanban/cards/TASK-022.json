@@ -1,0 +1,63 @@
+{
+  "id": "TASK-022",
+  "title": "自動化 CRUD Admin API（建立/編輯）",
+  "content": "spec §16.8/16.9：POST/PATCH /api/admin/automations，含關鍵字正規化與公開回覆版本；掛 requireAdminAuth+CSRF+限流。",
+  "stage": "done",
+  "risk": "medium",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "自動化規則管理",
+  "userStory": "建立/編輯自動化",
+  "dependsOn": [
+    "TASK-006",
+    "TASK-009",
+    "TASK-011"
+  ],
+  "order": 22,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": true,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/自動化規則管理/task-cards/TASK-022.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/admin/automations.ts",
+    "src/admin/routes.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "建立自動化：關鍵字正規化去重（ADHD/adhd 合併）、公開回覆版本最多 5 則、PATCH 局部更新",
+      "掛 requireAdminAuth+CSRF+限流；未登入 401",
+      "全專案 110 測試通過（5/5 穩定），lint/typecheck/build 全綠"
+    ],
+    "residual": "未做「取得自動化清單/單筆」的 GET（屬儀表板/貼文列表 Epic）；dailyLimit 僅儲存未在引擎強制（熔斷 Epic 處理每日上限）。"
+  },
+  "comments": []
+}

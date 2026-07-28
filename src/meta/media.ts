@@ -1,0 +1,121 @@
+// 貼文/Reels 同步（spec.md 第 16.7、20 節）。
+// 從 Meta Graph API 抓近期媒體，upsert 進 instagram_media（不刪除既有歷史）。
+import { eq } from 'drizzle-orm';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import type { AppBindings } from '../app';
+import { createDb } from '../database/client';
+import * as schema from '../database/schema';
+import { instagramAccounts, instagramMedia } from '../database/schema';
+import { MetaClient, type MetaClient as MetaClientType } from './client';
+
+type SchemaDb = BaseSQLiteDatabase<'sync' | 'async', unknown, typeof schema>;
+
+export interface RawMediaItem {
+  id: string;
+  media_type?: string;
+  caption?: string;
+  thumbnail_url?: string;
+  media_url?: string;
+  permalink?: string;
+  timestamp?: string;
+}
+
+// 從 Meta 回應同步媒體到 D1。回傳新增/更新筆數。
+export async function syncMediaItems(
+  db: SchemaDb,
+  accountInternalId: string,
+  items: RawMediaItem[],
+): Promise<{ inserted: number; updated: number }> {
+  let inserted = 0;
+  let updated = 0;
+  const now = new Date().toISOString();
+
+  for (const item of items) {
+    if (!item.id) continue;
+    const existing = await db
+      .select()
+      .from(instagramMedia)
+      .where(eq(instagramMedia.instagramMediaId, item.id))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db
+        .update(instagramMedia)
+        .set({
+          caption: item.caption ?? existing[0].caption,
+          thumbnailUrl: item.thumbnail_url ?? item.media_url ?? existing[0].thumbnailUrl,
+          permalink: item.permalink ?? existing[0].permalink,
+          lastSyncedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(instagramMedia.id, existing[0].id));
+      updated += 1;
+    } else {
+      await db.insert(instagramMedia).values({
+        id: crypto.randomUUID(),
+        instagramAccountId: accountInternalId,
+        instagramMediaId: item.id,
+        mediaType: item.media_type ?? 'UNKNOWN',
+        caption: item.caption ?? null,
+        thumbnailUrl: item.thumbnail_url ?? item.media_url ?? null,
+        permalink: item.permalink ?? null,
+        publishedAt: item.timestamp ?? null,
+        lastSyncedAt: now,
+      });
+      inserted += 1;
+    }
+  }
+
+  return { inserted, updated };
+}
+
+// 從 Meta 抓媒體清單（GET /{ig-account-id}/media）。
+export async function fetchRecentMedia(
+  client: MetaClientType,
+  instagramAccountId: string,
+): Promise<{ ok: boolean; items: RawMediaItem[]; status: number; reason?: string }> {
+  const fields = 'id,media_type,caption,thumbnail_url,media_url,permalink,timestamp';
+  const res = await client.get<{ data?: RawMediaItem[] }>(`${instagramAccountId}/media`, { fields });
+  if (!res.ok) {
+    return {
+      ok: false,
+      items: [],
+      status: res.status,
+      reason: res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error'),
+    };
+  }
+  return { ok: true, items: res.data?.data ?? [], status: res.status };
+}
+
+export interface SyncSummary {
+  accounts: number;
+  inserted: number;
+  updated: number;
+  errors: string[];
+}
+
+// 完整的同步流程（手動 API 與 cron 共用）：對每個帳號抓媒體並 upsert。
+export async function runScheduledSync(env: AppBindings): Promise<SyncSummary> {
+  const db = createDb(env.DB);
+  const client = new MetaClient({
+    accessToken: env.INSTAGRAM_ACCESS_TOKEN,
+    graphApiVersion: env.META_GRAPH_API_VERSION,
+    baseUrl: env.META_BASE_URL || undefined,
+  });
+  const accounts = await db.select().from(instagramAccounts);
+  const summary: SyncSummary = { accounts: accounts.length, inserted: 0, updated: 0, errors: [] };
+
+  for (const account of accounts) {
+    const res = await fetchRecentMedia(client, account.instagramAccountId);
+    if (!res.ok) {
+      summary.errors.push(
+        `account ${account.instagramAccountId}: 抓取媒體失敗 (HTTP ${res.status}, ${res.reason})`,
+      );
+      continue;
+    }
+    const counts = await syncMediaItems(db, account.id, res.items);
+    summary.inserted += counts.inserted;
+    summary.updated += counts.updated;
+  }
+  return summary;
+}

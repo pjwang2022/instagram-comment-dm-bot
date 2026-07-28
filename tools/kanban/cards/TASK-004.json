@@ -1,0 +1,62 @@
+{
+  "id": "TASK-004",
+  "title": "Cloudflare Secrets／Variables 設定與本機開發規範",
+  "content": "在 wrangler.jsonc 宣告一般 Variables 的 placeholder、建立 .dev.vars.example，並確保 .gitignore 涵蓋 .dev.vars，落實 spec.md 第 22 節的 Secret 管理規範。",
+  "stage": "done",
+  "risk": "low",
+  "track": "n/a",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "專案設置",
+  "userStory": "環境變數與金鑰設定",
+  "dependsOn": [],
+  "order": 4,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": true,
+    "test": false,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/專案設置/task-cards/TASK-004.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "wrangler.jsonc",
+    ".dev.vars.example",
+    ".gitignore"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run typecheck && npm run lint && npm run build",
+      "git check-ignore -v .dev.vars.example .dev.vars",
+      "grep -n 'META_APP_SECRET\\|META_VERIFY_TOKEN\\|INSTAGRAM_ACCESS_TOKEN\\|ADMIN_SESSION_SECRET\\|TOKEN_ENCRYPTION_KEY' wrangler.jsonc .dev.vars.example"
+    ],
+    "findings": [
+      "wrangler deploy --dry-run 列出 6 個 Environment Variable（META_GRAPH_API_VERSION/INSTAGRAM_ACCOUNT_ID/APP_ENV/APP_BASE_URL/ADMIN_EMAIL/LOG_LEVEL），皆為 <TODO:...> 或明確預設值，無真實機密",
+      ".dev.vars.example 中 5 個 Secret 名稱皆為空值＋說明註解，無真實機密",
+      "git check-ignore 確認 .dev.vars 會被排除、.dev.vars.example 不會被排除",
+      "lint/typecheck/build 全數通過"
+    ],
+    "residual": "META_GRAPH_API_VERSION／INSTAGRAM_ACCOUNT_ID／APP_BASE_URL／ADMIN_EMAIL 仍是 <TODO:...> placeholder，需使用者在實際串接 Meta API／申請正式網域前填入真實值；本卡不代為查證或假設 Graph API 版本號。"
+  },
+  "comments": []
+}

@@ -1,0 +1,63 @@
+{
+  "id": "TASK-023",
+  "title": "自動化啟用/暫停與啟用前驗證",
+  "content": "spec §16.10/16.11：activate 前驗證（關鍵字、URL、Opening DM、緊急停止等），pause 切狀態。",
+  "stage": "done",
+  "risk": "medium",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "自動化規則管理",
+  "userStory": "自動化啟用/暫停",
+  "dependsOn": [
+    "TASK-022"
+  ],
+  "order": 23,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": true,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/自動化規則管理/task-cards/TASK-023.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/admin/automations.ts",
+    "src/shared/validation.ts",
+    "tests/unit/validation.test.ts",
+    "tests/integration/automations.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "啟用前驗證（spec §16.10）：關鍵字必填（除 all_comments）、至少一種回覆、Private Reply 需 Opening DM、Button URL 需 HTTPS、緊急停止/Token 健康",
+      "activate/pause 正確切狀態；缺關鍵字回 422 附 reasons",
+      "全專案 110 測試通過（5/5 穩定），lint/typecheck/build 全綠"
+    ],
+    "residual": "Token 健康度以帳號 circuit_breaker_status 粗略判斷（MVP）；完整 Token 檢查屬 Instagram 帳號 Epic 的 cron。"
+  },
+  "comments": []
+}

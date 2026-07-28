@@ -1,0 +1,61 @@
+{
+  "id": "TASK-025",
+  "title": "自動熔斷評估邏輯",
+  "content": "spec §19：連續5次token/權限錯誤、政策限制、5分鐘內錯誤率>20%、每日上限 → 開熔斷。",
+  "stage": "done",
+  "risk": "medium",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "熔斷與緊急停止機制",
+  "userStory": "自動熔斷邏輯",
+  "dependsOn": [
+    "TASK-006"
+  ],
+  "order": 25,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": false,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/熔斷與緊急停止機制/task-cards/TASK-025.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/monitoring/circuit-breaker.ts",
+    "tests/unit/circuit-breaker.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "7 個測試通過：健康流量不開、每日上限、政策限制、連續5次token/權限、5分內錯誤率>20%、窗口外忽略",
+      "純函式可測，實際狀態寫入由呼叫端負責",
+      "全專案 121 測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "評估器為純邏輯；把它接進引擎每次發送後評估並寫 instagram_accounts.circuit_breaker_status 屬後續接線（引擎已會讀取該狀態並在 open 時略過）。"
+  },
+  "comments": []
+}

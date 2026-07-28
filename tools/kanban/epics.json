@@ -1,0 +1,146 @@
+{
+  "epics": [
+    {
+      "name": "專案設置",
+      "definition": "全專案的基礎工程建設：初始化 Worker/Admin 專案骨架、環境變數與 Cloudflare Secrets 規範、跨 Epic 共用的核心 D1 資料模型與管理者登入基礎、以及 React 管理後台的 UI 設計系統。所有功能 Epic 都依賴這個 Epic 完成後才能推進。",
+      "stories": [
+        {
+          "name": "技術骨架初始化",
+          "definition": "建立 ig-comment-dm-bot 專案骨架：Hono Worker（src/）、React+Vite 管理後台（admin/）、wrangler.jsonc（Worker/D1/Queue/Cron bindings）、drizzle.config.ts、lint/typecheck/test/build 腳本，以及 GitHub + Cloudflare Workers Builds 的 CI pipeline（lint → test → typecheck → preview deploy → migration → production deploy → smoke test）。"
+        },
+        {
+          "name": "環境變數與金鑰設定",
+          "definition": "定義並落實 Cloudflare Secrets（META_APP_SECRET / META_VERIFY_TOKEN / INSTAGRAM_ACCESS_TOKEN / ADMIN_SESSION_SECRET / TOKEN_ENCRYPTION_KEY）與一般 Variables（META_GRAPH_API_VERSION / INSTAGRAM_ACCOUNT_ID / APP_ENV / APP_BASE_URL / ADMIN_EMAIL / LOG_LEVEL）的存放與讀取規範，確保 Secret 不寫入程式碼、不進 Git、不傳到前端、不進一般 Log。"
+        },
+        {
+          "name": "核心資料模型與認證框架基礎",
+          "definition": "建立 spec.md 第 14 節全部 D1 資料表（admin_users / system_settings / instagram_accounts / instagram_media / automations / automation_keywords / public_reply_variants / webhook_events / automation_runs / api_attempts / audit_logs）與第 15 節索引的 Drizzle schema 與 migrations；實作管理者登入基礎（Email+Password、Argon2id、HttpOnly Session Cookie、CSRF、登入頻率限制）與登入頁、登出 API，作為所有 Admin API 的共用 auth middleware。"
+        },
+        {
+          "name": "UI 設計系統與風格指引",
+          "definition": "依 project-kickoff 的五階段流程（框架 → 風格 → design token → 元件庫 → 版面）為 React 管理後台建立設計系統，定案寫入 ai/context/design-system.md，作為後續所有管理後台頁面（貼文列表、自動化編輯、執行紀錄、儀表板等）的單一事實來源。"
+        }
+      ]
+    },
+    {
+      "name": "Instagram 帳號連接與貼文同步",
+      "definition": "綁定單一 Instagram Professional Account、同步貼文與 Reels（手動＋每日 04:00 排程），並每日檢查 Access Token 到期狀態。是後續自動化規則掛載的資料基礎。",
+      "stories": [
+        {
+          "name": "IG 帳號連接與狀態總覽",
+          "definition": "綁定單一 Instagram Professional Account，於管理後台顯示 username、大頭貼、帳號類型、Token 到期狀態、Webhook 訂閱狀態、最近一次收到 Webhook 時間。"
+        },
+        {
+          "name": "貼文與 Reels 同步（手動＋每日排程）",
+          "definition": "管理者可手動觸發同步（POST /api/admin/media/sync），系統取得近期貼文與 Reels 並 upsert 進 instagram_media；每天 04:00 Asia/Taipei 由 Cloudflare Cron Trigger 自動執行相同同步邏輯，更新 caption/thumbnail/permalink，不刪除既有歷史紀錄。"
+        },
+        {
+          "name": "Token 到期自動檢查與警告",
+          "definition": "每天 08:00 Asia/Taipei 由 Cloudflare Cron Trigger 驗證 Instagram Access Token 有效性、更新 token_expires_at，Token 即將到期時在儀表板顯示警告。"
+        }
+      ]
+    },
+    {
+      "name": "Webhook 接收與事件儲存",
+      "definition": "接收 Meta Instagram 留言 Webhook：驗證 Verify Token 的 GET 挑戰、驗證簽章並保存原始事件、處理 Meta 重送與 duplicate_count、送入 Cloudflare Queue，並在 Request 內立即回傳 200 OK（不等待任何 Meta API 呼叫完成）。",
+      "stories": [
+        {
+          "name": "Webhook 驗證端點（GET challenge）",
+          "definition": "實作 GET /api/webhooks/meta/instagram，驗證 hub.verify_token 是否正確，正確時回傳 hub.challenge，錯誤時回傳 403 Forbidden。"
+        },
+        {
+          "name": "事件接收、簽章驗證與冪等儲存（POST）",
+          "definition": "實作 POST /api/webhooks/meta/instagram：讀取原始 Request Body、以 Meta App Secret 做 constant-time 簽章驗證、解析並驗證必要欄位、依穩定事件 ID 或欄位 SHA-256 建立事件唯一鍵、寫入 webhook_events（重送時 duplicate_count 加一）、送出 Queue Message、立即回傳 200 OK；簽章驗證失敗不得進入 Queue，並寫入安全 Log。"
+        }
+      ]
+    },
+    {
+      "name": "自動化規則管理",
+      "definition": "管理者針對每篇貼文設定自動化：關鍵字比對模式、公開回覆版本、Opening DM 與外部連結按鈕，並可啟用／暫停。含貼文列表與自動化編輯的管理後台頁面。",
+      "stories": [
+        {
+          "name": "貼文列表頁",
+          "definition": "GET /api/admin/media 與對應前端頁面：顯示縮圖、Caption 摘要、貼文類型、發布日期、IG 連結、自動化狀態、本月觸發次數與成功率，支援分頁與 mediaType/automationStatus/search 篩選，並提供同步觸發入口。"
+        },
+        {
+          "name": "建立/編輯自動化",
+          "definition": "POST /api/admin/automations、PATCH /api/admin/automations/:id 與自動化編輯頁：自動化名稱、比對模式（contains_any/exact_any/all_comments）、關鍵字清單、Opening DM、Button Text/URL、每日觸發上限。"
+        },
+        {
+          "name": "公開回覆版本管理",
+          "definition": "每組自動化可設定 1 至 5 個公開回覆版本（public_reply_variants），各自可啟用／停用，供 Queue Consumer 執行時隨機選擇。"
+        },
+        {
+          "name": "自動化啟用/暫停",
+          "definition": "POST /api/admin/automations/:id/activate 與 /pause：啟用前驗證貼文存在、設定完整、關鍵字至少一個（除非 all_comments）、至少啟用公開回覆或 Private Reply、Private Reply 啟用時 Opening DM 不得為空、Button URL 為有效 HTTPS、Token 狀態正常、緊急停止未啟用。"
+        }
+      ]
+    },
+    {
+      "name": "留言比對與自動回覆引擎（Queue Consumer）",
+      "definition": "Queue Consumer 的核心處理鏈：留言文字正規化、關鍵字比對（含排除條件）、冪等性檢查與 automation_run 建立、公開回覆與 Private Reply 執行、暫時性錯誤重試分類。",
+      "stories": [
+        {
+          "name": "留言文字正規化",
+          "definition": "比對前正規化留言文字：移除前後空白、英文轉小寫、全形英數轉半形、連續空白合併，保留中文與 Emoji，不修改原始留言。"
+        },
+        {
+          "name": "關鍵字比對引擎",
+          "definition": "依自動化的 match_type 執行 contains_any／exact_any／all_comments 比對；套用排除條件（留言者為自己帳號、無 Comment ID／Media ID、自動化已停用、帳號已停用、緊急停止中、Comment ID 已處理、貼文未設定自動化）。"
+        },
+        {
+          "name": "冪等性檢查與 Automation Run 建立",
+          "definition": "依 UNIQUE(automation_id, instagram_comment_id) 建立 automation_run；同一事件再次抵達時不得再次公開回覆或發送 DM，僅需回應成功。"
+        },
+        {
+          "name": "公開回覆執行",
+          "definition": "從已啟用的公開回覆版本中隨機選擇一則呼叫 Meta API 回覆原留言；每個 Comment ID 最多公開回覆一次，失敗不得造成重複回覆。"
+        },
+        {
+          "name": "Private Reply DM 執行",
+          "definition": "以留言的 Comment ID 呼叫 Meta API 發送 Private Reply（Opening DM 文字＋外部連結按鈕）；每個 Comment ID 最多發送一次，不發送第二則追蹤訊息。"
+        },
+        {
+          "name": "錯誤分類與重試策略",
+          "definition": "區分可重試錯誤（429/500/502/503/504、網路錯誤、Timeout）與不可重試錯誤（Token 無效、權限不足、Comment ID 不存在、格式錯誤、自動化停用、政策限制、使用者不允許接收訊息），可重試錯誤依 30 秒／2 分鐘／10 分鐘序列最多重試三次。"
+        }
+      ]
+    },
+    {
+      "name": "熔斷與緊急停止機制",
+      "definition": "自動熔斷邏輯（Token/權限連續錯誤、錯誤率、每日發送上限）與管理者一鍵緊急停止／恢復，暫停後仍繼續接收與保存 Webhook，只停止公開回覆與 DM 發送。",
+      "stories": [
+        {
+          "name": "自動熔斷邏輯",
+          "definition": "連續 5 次 Token 無效、連續 5 次權限錯誤、收到明確政策限制錯誤、5 分鐘內至少 10 次呼叫且錯誤率超過 20%、或每日發送量超過上限時，自動將 circuit_breaker_status 轉為暫停，停止公開回覆與 DM 發送，但仍繼續接收與保存 Webhook。"
+        },
+        {
+          "name": "管理者緊急停止與恢復",
+          "definition": "POST /api/admin/system/emergency-stop 與 /resume，並在儀表板即時顯示緊急停止與熔斷器狀態。"
+        }
+      ]
+    },
+    {
+      "name": "執行紀錄與可觀測性儀表板",
+      "definition": "管理者儀表板統計、執行紀錄列表與詳情（含 Meta API 錯誤與重試歷程、敏感資訊遮蔽）、稽核紀錄。資料清理排程本階段不做（見 ai/context/decisions.md）。",
+      "stories": [
+        {
+          "name": "儀表板統計總覽",
+          "definition": "GET /api/admin/system/status 與儀表板頁面：今日留言數、匹配關鍵字數、公開回覆成功數、DM 成功數、失敗數、最近一次 Webhook 時間、Token 狀態、Queue 狀態、緊急停止狀態、熔斷器狀態。"
+        },
+        {
+          "name": "執行紀錄列表與篩選",
+          "definition": "GET /api/admin/automation-runs 與列表頁：支援 dateFrom/dateTo/mediaId/automationId/status/publicReplyStatus/privateReplyStatus/keyword 篩選，顯示日期、貼文、留言內容、符合關鍵字、公開回覆狀態、DM 狀態、重試次數、錯誤摘要。"
+        },
+        {
+          "name": "執行紀錄詳情",
+          "definition": "GET /api/admin/automation-runs/:runId 與詳情頁：Webhook Payload、規則匹配結果、Meta API Request 摘要與 Response、Meta error code、Meta trace ID、重試歷程；Token 等敏感資訊必須遮蔽。"
+        },
+        {
+          "name": "稽核紀錄",
+          "definition": "記錄管理者操作（登入、建立/修改/啟用/暫停自動化、緊急停止/恢復等）至 audit_logs，供事後追溯。"
+        }
+      ]
+    }
+  ]
+}

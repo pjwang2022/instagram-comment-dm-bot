@@ -1,0 +1,216 @@
+# Monstrare
+
+**English** | [繁體中文](README.zh-TW.md)
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**A cloneable workflow layer that stops AI coding agents from shipping non-trivial changes based on vague requirements.**
+
+Copy this repo into any project. Claude Code, Codex, and other agentic tools
+then follow the same gated process — spec, plan, task cards, implementation,
+verification, review — before code reaches production.
+
+## Preview
+
+The kit ships a local, zero-dependency Kanban board (`tools/kanban/`, `npm run kanban`)
+that visualizes every task's progress through the gates below.
+
+![Kanban board](tools/kanban/docs/board-screenshot.png)
+![Roadmap view](tools/kanban/docs/roadmap-screenshot.png)
+
+## The Problem
+
+- Agents start coding from vague prompts and produce large, unreviewable diffs.
+- "Looks right" ships without tests, screenshots, or evidence.
+- Architecture and security get reviewed after the code is already written, if at all.
+- Every project reinvents its own ad-hoc process for working with agents.
+
+## How It Works
+
+Every non-trivial change moves through these phases, defined in full in
+`ai/process/workflow.md`:
+
+| Phase | Output | Gate |
+| --- | --- | --- |
+| 0. Intake | Problem statement, goal, constraints, unknowns | Vague request -> go to Clarification |
+| 1. Context Discovery | Task-specific context pack: files, patterns, risks, verification commands | — |
+| 2. Clarification | `feature-spec.md`, non-goals, acceptance criteria | Human approval |
+| 3. UI Mockup *(if UI)* | Screen/state maps, 2-3 variants, trade-offs | Human picks a variant |
+| 4. Architecture Plan | Files touched, data/API contracts, rollback plan | High-risk -> architect + security + test review |
+| 5. Task Cards | AI-ready cards meeting `definition-of-ready.md` | — |
+| 6. Implementation | One approved card at a time, small diffs | Scope change -> stop and ask |
+| 7. Verification | Tests, typecheck, lint, build, security scan, screenshots | — |
+| 8. Review | Product / UX / architecture / security / test / code review | `review-gates.md` |
+| 9. Human Acceptance | What changed, evidence, residual risk, follow-ups | No evidence -> not done |
+
+New project with no Epic/User Story backlog yet? Run the `project-kickoff`
+skill first — it splits the project into Epics -> User Stories -> Tasks and
+seeds `tools/kanban/`.
+
+## Design Quality: Two Layers
+
+UI work is governed by two complementary layers — process alone produces
+compliant-but-ugly screens, so the kit ships both:
+
+1. **Design system (what to use)** — Epic 0 builds the design system in five
+   human-gated stages (framework -> style direction -> design tokens ->
+   component library -> page layouts), persisted to
+   `ai/context/design-system.md`. Every later UI task must reuse those
+   tokens/components; missing components are built in the same style and
+   registered back into the inventory.
+2. **Design craft (how to make it good)** — `ai/skills/design-craft.md`
+   carries the visual-quality discipline (Refactoring UI principles, type
+   scale, 4px spacing grid, layered color systems, depth rules, five
+   interactive states) plus a curated list of high-quality open-source
+   references to compare against before designing. Deliverables are checked
+   against `ai/checklists/design-review-checklist.md`.
+
+Both live in the repository, so every machine and every agent (Claude Code,
+Codex, ...) that clones the repo gets the same design standard — no hidden
+dependency on skills installed in someone's home directory.
+
+## Rules Enforced On Every Agent
+
+From `AGENTS.md`, read before any agent touches this repository:
+
+- No non-trivial change from a vague request.
+- Start from context discovery, not assumptions.
+- `definition-of-ready.md` before implementation, `definition-of-done.md` before calling anything done.
+- UI changes need `screen-spec.md` + `mockup-decision.md`, reuse the design system in `ai/context/design-system.md`, and follow the `design-craft` visual discipline.
+- High-risk changes need architecture + security + test review.
+- Reuse existing patterns over new abstractions.
+- Stay inside the approved task card's scope; no unrelated file changes without saying so.
+- No completion claim without evidence: commands, output, screenshots, residual risk.
+
+Agent output is never itself an approval — humans sign off at every gate in
+`ai/process/review-gates.md`.
+
+## What This Replaces
+
+| Inspiration | Borrowed idea |
+| --- | --- |
+| BMAD Method | Role-based AI agile workflows |
+| GitHub Spec Kit | Spec-first: clarify -> plan -> tasks -> implement |
+| Kiro Specs | Requirements, design, and task artifacts |
+| Task Master | PRD-to-task decomposition, model routing |
+| Serena | Semantic project search and context retrieval |
+| SuperClaude | Slash-command style repeatable workflows |
+| Archon | Deterministic, gate-based workflow execution |
+| Plandex | Large-context planning, diff review, controlled execution |
+| CodeRabbit / Qodo | Review-first quality gates |
+
+Not vendored — this kit is a process layer that can call or coexist with any
+of them.
+
+## Repository Layout
+
+```text
+AGENTS.md                     # Codex entrypoint
+CLAUDE.md                     # Claude Code entrypoint
+.claude/skills/               # Claude Code skills
+.claude/agents/               # Claude Code subagents
+.codex/skills/                # Codex skills
+.codex/config.toml            # Optional Codex local defaults
+ai/process/                   # Shared workflow rules
+ai/templates/                 # Specs, task cards, review reports
+ai/context/                   # Project map, design system, and search guides
+ai/checklists/                # Security, testing, and design review gates
+ai/skills/                    # Canonical skill content shared by .claude/skills and .codex/skills
+ai/artifacts/                 # Completed specs, mockups, task cards, verification reports (one folder per Epic)
+ai/examples/                  # Example task and feature artifacts
+tools/kanban/                 # Local Kanban board implementing ai/process/kanban.md
+```
+
+## Quick Start
+
+**Starting a new project?** Clone this repo and build directly inside it —
+`AGENTS.md`, `CLAUDE.md`, and the whole `ai/` toolkit are already at the root.
+
+```bash
+git clone https://github.com/pjwang2022/Monstrare.git my-project
+cd my-project
+rm -rf .git && git init   # start your own history
+```
+
+Then make it yours: replace `README.md`/`README.zh-TW.md` with your own
+project's readme, rename `package.json`'s `name`, and optionally delete
+`scripts/install-into-project.sh` and the board-design history under
+`tools/kanban/` (`mockups/`, `mockup-decision.md`, `screen-spec.md`) — those
+belong to Monstrare itself, not your project.
+
+Then open Claude Code or Codex in that folder and just describe what you want
+to build:
+
+```bash
+claude
+```
+
+```text
+I want to build an online booking system.
+```
+
+Since there's no Epic/User Story backlog yet, this triggers the
+`project-kickoff` skill: it breaks the idea into Epics -> User Stories ->
+Tasks and seeds `tools/kanban/`. Each task then walks through the phases in
+[How It Works](#how-it-works) on its own.
+
+**Adding this to an existing codebase instead?** Skip to
+[Install Into An Existing Project](#install-into-an-existing-project) below,
+then start from context discovery instead of `project-kickoff`:
+
+```text
+Use the project-search skill to create ai/context/project-map.md and ai/context/code-search-guide.md.
+Do not implement anything yet.
+```
+
+```text
+Use spec-interrogation for: <feature idea>.
+Create a feature spec, screen specs if UI is involved, and AI-ready task cards.
+Stop before implementation for human review.
+```
+
+## Install Into An Existing Project
+
+```bash
+scripts/install-into-project.sh /path/to/your/project
+```
+
+Copies process files, templates, checklists, Claude/Codex skills and agents,
+the governance self-check, GitHub PR/issue templates, and the kanban tool
+(minus Monstrare's own board-design history) into the target project.
+
+Never overwritten: existing `AGENTS.md`, `CLAUDE.md`, `ai/context/` files,
+`ai/artifacts/`, `.codex/config.toml`, and an existing `tools/kanban/`.
+Always updated to the kit's latest version: `ai/process/`, `ai/templates/`,
+`ai/checklists/`, `ai/skills/`, and the skill stubs — if you've locally
+modified those kit files, commit before re-running the installer.
+
+```bash
+scripts/check-governance.sh   # self-check from the repo root
+```
+
+## AI Kanban
+
+`ai/process/kanban.md` is the board policy — it tracks whether a task is
+ready for safe agent execution, not just its status. `tools/kanban/` is one
+implementation of it: a zero-dependency local board that simplifies the
+policy's 12 stages down to 6 lanes (Backlog -> Blocked -> Ready ->
+Implementing -> Verify -> Done). The tool is optional; the policy doesn't
+require it.
+
+```bash
+npm run kanban   # open http://127.0.0.1:4420
+```
+
+![Kanban board](tools/kanban/docs/board-screenshot.png)
+
+- **Add a card** — click "+ 新增卡片" at the bottom of any lane; the server assigns the ID.
+- **Move a card** — drag it into another lane to change its stage, or reorder it within a lane.
+- **Edit details** — click a card to open its panel: owner, risk, agent, Readiness checklist, Review Gates, comments.
+- **Track by Epic/User Story** — switch to the "藍圖" (Roadmap) tab.
+
+![Roadmap view](tools/kanban/docs/roadmap-screenshot.png)
+
+Every action writes straight back to `cards/*.json` — no save button, no
+database; `git commit`/`git push` is how state is persisted and shared. Full
+schema and API reference: [`tools/kanban/README.md`](tools/kanban/README.md).

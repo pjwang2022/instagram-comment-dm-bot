@@ -1,0 +1,63 @@
+{
+  "id": "TASK-010",
+  "title": "登入頁前端（功能性、無視覺樣式）",
+  "content": "串接真實登入 API，刻意不套用視覺樣式（等 UI 設計系統 User Story 定案後再回頭補視覺）。",
+  "stage": "done",
+  "risk": "medium",
+  "track": "frontend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": true,
+  "createdAt": "2026-07-28",
+  "epic": "專案設置",
+  "userStory": "核心資料模型與認證框架基礎",
+  "dependsOn": [
+    "TASK-009"
+  ],
+  "order": 10,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": false,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/專案設置/task-cards/TASK-010.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "admin/src/pages/LoginPage.tsx",
+    "admin/src/api/client.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "cd admin && npx tsc --noEmit && npm run build",
+      "npx wrangler dev（真實 Workers runtime）+ curl 登入流程端到端",
+      "npm run lint && npm run typecheck && npm run test && npm run build"
+    ],
+    "findings": [
+      "登入表單串接 POST /api/admin/auth/login（credentials: include），成功導向 /admin，失敗顯示後端錯誤訊息，429 顯示「請稍後再試」",
+      "刻意未套用任何視覺樣式（無自訂配色/字體/間距/元件庫），留待 UI 設計系統 User Story 定案後的後續任務卡",
+      "端到端於 wrangler dev 驗證：正確帳密 200+cookie、錯誤帳密/不存在帳號同一 401、跨源/無 Origin 403、rate limit 第 11 次起 429、logout 清 cookie",
+      "admin build 成功（25 modules），全專案 41 測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "前端表單邏輯簡單，未加獨立 React 測試框架（會多一組 jsdom/testing-library 依賴）；auth 流程的伺服器端行為已由 TASK-009 整合測試＋本卡的 wrangler dev 手動 E2E 覆蓋（此為架構審查建議的作法）。頁面為刻意的無樣式過渡態，未附截圖，視覺驗證留給套用 design system 的後續卡。"
+  },
+  "comments": []
+}

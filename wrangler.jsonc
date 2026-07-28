@@ -1,0 +1,71 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ig-comment-dm-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./admin/dist",
+    "binding": "ASSETS"
+  },
+  // 一般 Variables（非機密，見 spec.md 第 22 節）。正式部署前請把下列 <TODO:...>
+  // 換成實際值；本機開發時可在 .dev.vars 覆寫（見 .dev.vars.example）。
+  // META_GRAPH_API_VERSION：串接 Meta API 前，請對照 Meta for Developers 官方文件
+  // 確認當下最新的 Graph API 版本號，不要沿用這裡的 placeholder。
+  "vars": {
+    "META_GRAPH_API_VERSION": "<TODO:確認目前最新 Graph API 版本>",
+    "INSTAGRAM_ACCOUNT_ID": "<TODO:填入 Instagram Professional Account ID>",
+    "APP_ENV": "development",
+    "APP_BASE_URL": "<TODO:填入正式網域，例如 https://igbot.example.com>",
+    "ADMIN_EMAIL": "<TODO:填入管理者登入 Email>",
+    "LOG_LEVEL": "info"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ig-comment-dm-db",
+      "database_id": "<D1_DATABASE_ID>",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ],
+  // Cloudflare 原生 Rate Limiting binding：一般 Admin API 每 Session 每分鐘 120 次。
+  // period 只支援 10/60 秒；登入的 15 分鐘窗口改用 login_rate_limits D1 表（見 src/security/rate-limit.ts）。
+  "ratelimits": [
+    {
+      "name": "ADMIN_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "COMMENT_QUEUE",
+        "queue": "ig-comment-events"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "ig-comment-events",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3
+      }
+    ]
+  },
+  "triggers": {
+    // 台北時間 04:00（貼文/Reels 每日同步）與 08:00（Token 到期檢查）換算 UTC。
+    // 台灣不使用日光節約時間，固定 UTC+8：04:00 Asia/Taipei = 20:00 UTC（前一天）；08:00 Asia/Taipei = 00:00 UTC。
+    // 資料清理排程本階段不做（見 ai/context/decisions.md），故不在此宣告第三個 cron。
+    "crons": [
+      "0 20 * * *",
+      "0 0 * * *"
+    ]
+  }
+}

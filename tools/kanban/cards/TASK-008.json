@@ -1,0 +1,80 @@
+{
+  "id": "TASK-008",
+  "title": "Session／CSRF／Rate-limit 中介層",
+  "content": "無狀態簽章 session cookie（fail-closed exp/簽章）、CSRF（精確比對+雙缺失拒絕）、混合 rate limit（原生 binding for admin-api、D1 計數表 for 登入 15 分鐘窗口）。",
+  "stage": "done",
+  "risk": "high",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": true,
+  "createdAt": "2026-07-28",
+  "epic": "專案設置",
+  "userStory": "核心資料模型與認證框架基礎",
+  "dependsOn": [
+    "TASK-006"
+  ],
+  "order": 8,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": true,
+    "security": true,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/專案設置/task-cards/TASK-008.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/security/session.ts",
+    "src/security/csrf.ts",
+    "src/security/rate-limit.ts",
+    "wrangler.jsonc",
+    "tests/unit/session.test.ts",
+    "tests/unit/csrf.test.ts",
+    "tests/unit/rate-limit.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npx wrangler deploy --dry-run",
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "Rate Limit binding 正確識別為 120 requests/60s（wrangler dry-run）",
+      "session 測試 7 項通過：合法驗證、竄改 payload/簽章/不同 secret/過期/exp 缺失 fail-closed、格式錯誤",
+      "csrf 測試 9 項通過：安全方法放行、同源放行、Referer fallback、跨源拒絕、子網域繞過拒絕、null origin 拒絕、雙缺失 fail-closed、APP_BASE_URL 設定錯誤 fail-closed",
+      "login rate limit 測試 4 項通過：恰好 10 次後擋、不同 IP 獨立、跨窗口重置、DB 故障 fail-closed",
+      "全部 33 個測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "登入限流用 D1 固定窗口計數，在高併發下讀改寫可能有極小的計數誤差（對單一管理者登入無實質安全影響）。原生 ADMIN_RATE_LIMITER 的 namespace_id 用佔位值 1001，正式部署時可依需要調整；本地測試無法驗證原生 binding 實際行為，僅由 dry-run 確認設定正確、由 fail-closed 邏輯單元測試覆蓋錯誤路徑。"
+  },
+  "comments": [
+    {
+      "name": "architect agent",
+      "time": "2026-07-28",
+      "text": "Blocker：Cloudflare 原生 Rate Limiting binding 週期只支援 10/60 秒，無法表示 15 分鐘登入限流窗口（已對照 node_modules/wrangler/config-schema.json 驗證）。使用者選定混合方案：新增 D1 計數表處理登入限流，其餘沿用原生 binding。"
+    },
+    {
+      "name": "security-reviewer agent",
+      "time": "2026-07-28",
+      "text": "安全性審查：CSRF 需 fail-closed 且精確比對 Origin；HMAC 驗證需 constant-time；session payload 的 exp 缺失需 fail-closed；限流元件故障需 fail-closed。已依此修改任務卡。"
+    }
+  ]
+}

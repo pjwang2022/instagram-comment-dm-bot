@@ -1,0 +1,75 @@
+{
+  "id": "TASK-009",
+  "title": "登入／登出 Admin API",
+  "content": "組裝 TASK-007/008 成完整登入流程，含 timing equalization 與 audit_logs 埋點。",
+  "stage": "done",
+  "risk": "high",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": true,
+  "createdAt": "2026-07-28",
+  "epic": "專案設置",
+  "userStory": "核心資料模型與認證框架基礎",
+  "dependsOn": [
+    "TASK-006",
+    "TASK-007",
+    "TASK-008"
+  ],
+  "order": 9,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": true,
+    "security": true,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/專案設置/task-cards/TASK-009.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/admin/auth.ts",
+    "src/admin/routes.ts",
+    "src/app.ts",
+    "tests/integration/auth.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npx vitest run tests/integration/auth.test.ts",
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "登入成功→200＋Set-Cookie（HttpOnly/Secure/SameSite=Strict）",
+      "密碼錯誤與帳號不存在→同一個 401 {error:\"Email 或密碼錯誤\"}，不洩漏差異",
+      "timing equalization：帳號不存在時對 getDummyHash() 跑一次 verifyPassword",
+      "audit_logs 寫入 admin.login.success/failure/logout，且序列化後不含明文密碼或 $argon2 雜湊",
+      "未帶 cookie 的 logout→401；帶有效 cookie→200 並回 Max-Age=0 清除 cookie",
+      "6 個整合測試通過，全專案 39 個測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "整合測試用 better-sqlite3 實作的 D1Database shim（drizzle-orm/d1 只用到 prepare/bind/all/run/raw/batch），非真正的 Workers D1 runtime；真實 D1 行為需在部署或 wrangler dev 階段再驗證。登入頻率限制 middleware 在整合測試中因走 createDb(env.DB) 亦已連通 D1 shim，但原生 ADMIN_RATE_LIMITER 用 always-allow stub。"
+  },
+  "comments": [
+    {
+      "name": "security-reviewer agent",
+      "time": "2026-07-28",
+      "text": "安全性審查：登入需做 timing equalization（帳號不存在時也跑一次 dummy 雜湊驗證）；登入成功/失敗/登出需寫 audit_logs 且不含機密。已依此修改任務卡。"
+    }
+  ]
+}

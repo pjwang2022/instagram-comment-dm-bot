@@ -1,0 +1,13 @@
+.env
+.env.*
+.dev.vars
+node_modules/
+.DS_Store
+dist/
+build/
+coverage/
+.cache/
+tmp/
+.wrangler/
+*.tsbuildinfo
+

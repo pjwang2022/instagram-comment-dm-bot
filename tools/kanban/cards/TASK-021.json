@@ -1,0 +1,67 @@
+{
+  "id": "TASK-021",
+  "title": "Queue Consumer 引擎（比對→回覆→結果）",
+  "content": "spec §7.2/§12.2：查 automation→正規化→比對→排除→冪等→公開回覆→Private Reply→寫結果與 api_attempts。",
+  "stage": "done",
+  "risk": "high",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "留言比對與自動回覆引擎（Queue Consumer）",
+  "userStory": "公開回覆執行",
+  "dependsOn": [
+    "TASK-011",
+    "TASK-012",
+    "TASK-017",
+    "TASK-019",
+    "TASK-020"
+  ],
+  "order": 21,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": true,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/留言比對與自動回覆引擎（Queue Consumer）/task-cards/TASK-021.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/automation/engine.ts",
+    "src/queue/consumer.ts",
+    "src/index.ts",
+    "tests/integration/engine.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "7 個整合測試通過：完整比對→公開回覆→DM 各一次、重複處理不再送（冪等）、不符略過、自己留言略過、緊急停止略過、無 active automation 略過、可重試 DM 失敗回 retry(30s) 且重試時不重送公開回覆",
+      "engine 掛上 queue handler（index.ts）",
+      "全專案 99 測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "熔斷器狀態只讀取判斷（circuit_open 略過），實際觸發熔斷的邏輯屬「熔斷與緊急停止」Epic 後續卡；真實 Meta 呼叫需憑證上線驗證。"
+  },
+  "comments": []
+}

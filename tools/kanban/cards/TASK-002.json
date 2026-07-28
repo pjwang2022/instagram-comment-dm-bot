@@ -1,0 +1,71 @@
+{
+  "id": "TASK-002",
+  "title": "Admin 前端骨架（Vite + React + React Router）",
+  "content": "在 admin/ 建立可建置為靜態檔的 React+Vite+React Router+TypeScript 骨架，輸出 admin/dist，具備登入頁/首頁佔位路由。不套用視覺設計決策。",
+  "stage": "done",
+  "risk": "low",
+  "track": "frontend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "專案設置",
+  "userStory": "技術骨架初始化",
+  "dependsOn": [],
+  "order": 2,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": false,
+    "test": false,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/專案設置/task-cards/TASK-002.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "admin/vite.config.ts",
+    "admin/src/main.tsx",
+    "admin/package.json",
+    "admin/tsconfig.json"
+  ],
+  "evidence": {
+    "commands": [
+      "npm install（於 admin/，安裝 react/react-dom/react-router-dom/vite/@vitejs/plugin-react/typescript）",
+      "npx tsc --noEmit（於 admin/）",
+      "npm run build（於 admin/，vite build）",
+      "npx vite --port 5173（本地 dev server，實際綁定 5176）+ curl /admin/login 與 /admin/",
+      "cd .. && npx wrangler deploy --dry-run（確認 admin/dist 的真實 build 產物可被 Worker assets 讀取）"
+    ],
+    "findings": [
+      "vite build 成功產出 admin/dist/index.html + assets/*.js（24 modules transformed）",
+      "tsc --noEmit 無錯誤",
+      "dev server 對 /admin/login 與 /admin/ 皆回傳 200，內容為同一個 SPA shell（client-side routing 由 main.tsx 的 <Routes> 決定，正確性以程式碼與型別檢查佐證）",
+      "wrangler deploy --dry-run 讀到 3 個檔案（真實 build 產物，取代 TASK-001 的佔位 index.html）"
+    ],
+    "residual": "1) 兩條路由的畫面內容目前只是純文字 placeholder，未套用任何視覺樣式，因此未附螢幕截圖——視覺驗證留待對應功能頁面實作、且 UI 設計系統 User Story 定案後再進行。2) 本機沙盒環境 IPv4 loopback（127.0.0.1）對本地啟動的 dev server 連線會被拒絕，需改用 localhost/::1 才能連線，屬本機網路環境限制，不影響實際部署行為。3) admin/ 採獨立 package.json（非 npm workspace），root 專案的 lint/typecheck/build 腳本需分別委派到 admin/，將於 TASK-003 一併處理。"
+  },
+  "comments": [
+    {
+      "name": "實作 agent",
+      "time": "2026-07-28",
+      "text": "TASK-003 執行時發現 typescript@7.0.2 與 typescript-eslint@8 不相容，已將本卡（admin/）建立的 typescript 依賴改為 5.9.3；tsc --noEmit 重新確認通過，不影響本卡其餘完成證據。"
+    }
+  ]
+}

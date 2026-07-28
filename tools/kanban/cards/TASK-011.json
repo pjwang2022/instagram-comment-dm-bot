@@ -1,0 +1,60 @@
+{
+  "id": "TASK-011",
+  "title": "留言文字正規化",
+  "content": "spec §8.2：trim、小寫、全形轉半形、連續空白合併，保留中文與 Emoji，不改原文。",
+  "stage": "done",
+  "risk": "low",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "留言比對與自動回覆引擎（Queue Consumer）",
+  "userStory": "留言文字正規化",
+  "dependsOn": [
+    "TASK-001"
+  ],
+  "order": 11,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": false,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/留言比對與自動回覆引擎（Queue Consumer）/task-cards/TASK-011.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/automation/normalizer.ts",
+    "tests/unit/normalizer.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "8 個正規化測試通過（含 spec 範例、全形/大小寫/空白/中文/Emoji）",
+      "全專案 68 測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "純邏輯核心，尚未接上 Queue Consumer 引擎/Webhook POST 端點的資料層與 Meta API 呼叫（需 D1/Queue 接線與 Meta 憑證，屬後續卡）。"
+  },
+  "comments": []
+}

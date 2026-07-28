@@ -1,0 +1,70 @@
+{
+  "id": "TASK-003",
+  "title": "Lint／Typecheck／Test／Build 腳本與 CI Pipeline",
+  "content": "統一根目錄 lint/typecheck/test/build 腳本，涵蓋 src/ 與 admin/，並建立 GitHub Actions workflow 在 push/PR 時自動執行四項檢查。依賴 TASK-001、TASK-002 的骨架程式碼。",
+  "stage": "done",
+  "risk": "low",
+  "track": "n/a",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "專案設置",
+  "userStory": "技術骨架初始化",
+  "dependsOn": ["TASK-001", "TASK-002"],
+  "order": 3,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": true,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/專案設置/task-cards/TASK-003.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "package.json",
+    "eslint.config.js",
+    ".prettierrc.json",
+    "vitest.config.ts",
+    "tests/unit/health.test.ts",
+    ".github/workflows/ci.yml"
+  ],
+  "evidence": {
+    "commands": [
+      "npm install --save-dev eslint@9 @eslint/js@9 typescript-eslint eslint-plugin-react eslint-plugin-react-hooks prettier eslint-config-prettier vitest globals",
+      "npm install --save-dev typescript@5.9.3（根目錄與 admin/，取代原本的 typescript@7.0.2）",
+      "npm run lint",
+      "npm run test",
+      "npm run typecheck",
+      "npm run build",
+      "python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))\"（YAML 語法檢查）"
+    ],
+    "findings": [
+      "npm run lint → 0 error（修正 src/index.ts 佔位參數的 no-unused-vars、tools/kanban/server.mjs 的 Node global 誤判）",
+      "npm run test → 1 passed（tests/unit/health.test.ts 驗證 GET /api/health）",
+      "npm run typecheck → 根目錄與 admin/ 皆無錯誤",
+      "npm run build → admin vite build 成功 + wrangler deploy --dry-run 成功",
+      "TypeScript 7.0.2 與 typescript-eslint@8 不相容（peer 要求 <6.1.0），已將根目錄與 admin/ 皆改用 typescript@5.9.3"
+    ],
+    "residual": "1) 為配合本機 Node 20.19.0，最初嘗試安裝的 @cloudflare/vitest-pool-workers 因transitively 需要 Node ≥22 的 miniflare 而移除，改用純 vitest 直接呼叫 Hono app 的 `.request()` 測試（未透過真正的 Workers runtime/bindings）；之後若要測試實際用到 D1/Queue bindings 的邏輯，需重新評估 vitest-pool-workers 或改在 Node ≥22 環境跑。2) CI workflow 的 Node 版本固定為 20，需與本機開發環境（Node 20.19.0）及 wrangler@4.86.0 保持一致；之後若本機升級 Node ≥22，可考慮同步升級 wrangler/@cloudflare/vitest-pool-workers 並更新 CI。3) Cloudflare Workers Builds（雲端自動部署）尚未在 Cloudflare Dashboard 連接 GitHub repo，這是使用者的帳號操作步驟，CI 目前只涵蓋 lint/test/typecheck/build 四項 PR 前檢查，不含實際部署。4) `npm audit` 顯示數個中高風險漏洞（多半來自 wrangler/miniflare 工具鏈的間接依賴），屬開發工具鏈而非執行期程式碼，暫不處理，但保留 `npm audit` 輸出供之後檢視。"
+  },
+  "comments": []
+}

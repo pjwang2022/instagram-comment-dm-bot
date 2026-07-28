@@ -1,0 +1,60 @@
+{
+  "id": "TASK-017",
+  "title": "公開回覆版本隨機選擇",
+  "content": "spec §9/§26：從已啟用的公開回覆版本中隨機選一則。",
+  "stage": "done",
+  "risk": "low",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "留言比對與自動回覆引擎（Queue Consumer）",
+  "userStory": "公開回覆執行",
+  "dependsOn": [
+    "TASK-001"
+  ],
+  "order": 17,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": false,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/留言比對與自動回覆引擎（Queue Consumer）/task-cards/TASK-017.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/automation/public-reply.ts",
+    "tests/unit/public-reply.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "4 個測試通過（只選 enabled、可注入亂數決定、全停用回 null、randomFn=1 不越界）",
+      "全專案 78 測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "只做選擇邏輯；Meta 公開回覆 API 呼叫與每 Comment ID 冪等屬後續卡。"
+  },
+  "comments": []
+}

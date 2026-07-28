@@ -1,0 +1,80 @@
+{
+  "id": "TASK-007",
+  "title": "密碼雜湊工具與 Admin 使用者 Seed",
+  "content": "PBKDF2-HMAC-SHA256（WebCrypto，600k 迭代，硬下限）+ CLI seed 腳本（密碼只走 stdin）。原規劃的 hash-wasm/Argon2id 因 Workers 禁執行期 WASM 編譯改用 PBKDF2。",
+  "stage": "done",
+  "risk": "high",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": true,
+  "createdAt": "2026-07-28",
+  "epic": "專案設置",
+  "userStory": "核心資料模型與認證框架基礎",
+  "dependsOn": [
+    "TASK-006"
+  ],
+  "order": 7,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": true,
+    "security": true,
+    "test": false,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/專案設置/task-cards/TASK-007.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/security/password.ts",
+    "scripts/create-admin.ts",
+    "scripts/tsconfig.json",
+    "tests/unit/password.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test && npm run lint && npm run typecheck && npm run build",
+      "printf 'admin@example.com\\nverify-me-please-123\\nverify-me-please-123\\n' | npx tsx scripts/create-admin.ts",
+      "npx wrangler d1 execute DB --local --command=\"<CLI 產生的 INSERT SQL>\"",
+      "npx wrangler d1 execute DB --local --command=\"SELECT ... FROM admin_users WHERE email=...\"",
+      "npx tsx <verify-check> 用查回來的 password_hash 呼叫 verifyPassword",
+      "npx tsx scripts/create-admin.ts --email admin@example.com（確認拒絕 argv 參數）"
+    ],
+    "findings": [
+      "6 個單元測試通過：正確驗證、錯誤密碼、salt 隨機性、Argon2id 參數不低於硬下限、單次雜湊耗時量測（Node 上約 20ms）、dummy hash 穩定可重用",
+      "CLI 端到端驗證：Email/密碼互動輸入 → 產生 INSERT SQL → 寫入本機 D1 → 查詢回來 → verifyPassword 對正確密碼回傳 true、對錯誤密碼回傳 false",
+      "CLI 正確拒絕：密碼不一致、密碼 <12 字元、Email 格式錯誤、以及命令列參數（防 shell history 洩漏）",
+      "questionHidden/question 改用同一套逐字元讀取＋unshift 剩餘 chunk 的機制，避免 pipe 輸入時遺失資料（原本用 readline.Interface 混手動 stdin 監聽會卡住）",
+      "TASK-010 於真實 wrangler dev 驗證：改用 PBKDF2 後登入成功回 200+Set-Cookie，PBKDF2 單次登入約 93ms wall（Workers 本機 isolate，含 D1 查詢＋簽章）"
+    ],
+    "residual": "密碼雜湊已從 Argon2id/hash-wasm 改為 PBKDF2-HMAC-SHA256（600k 迭代）——原因是 Workers 禁執行期 WASM 編譯（見 ai/context/decisions.md）。wrangler dev 本機 isolate 實測登入約 93ms wall；正式環境 Workers CPU 限制下的表現需再確認，若撞限制須循「回報人工決策／升級 CPU 額度」而非調降迭代數。scripts/tsconfig.json 為 CLI 獨立的 Node-only TS 設定。"
+  },
+  "comments": [
+    {
+      "name": "security-reviewer agent",
+      "time": "2026-07-28",
+      "text": "安全性審查：Argon2id 參數需設硬下限、不可為遷就 CPU 限制自行調降；CLI 密碼輸入需走 stdin，不得作為 argv 參數。已依此修改任務卡。"
+    },
+    {
+      "name": "實作 agent",
+      "time": "2026-07-28",
+      "text": "TASK-010 實測發現 hash-wasm（Argon2id）在 Workers runtime 會因禁止執行期 WASM 編譯而失敗。已改用 PBKDF2-HMAC-SHA256（WebCrypto，600k 迭代，spec 18.1 允許的相容雜湊）。介面不變、既有測試仍過、並在真實 wrangler dev 驗證登入成功。詳見 ai/context/decisions.md。"
+    }
+  ]
+}

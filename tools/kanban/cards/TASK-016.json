@@ -1,0 +1,60 @@
+{
+  "id": "TASK-016",
+  "title": "Webhook 事件唯一鍵產生",
+  "content": "spec §13.1：有穩定事件 ID 用之，否則對 account/media/comment/type/timestamp 算 SHA-256。",
+  "stage": "done",
+  "risk": "low",
+  "track": "backend",
+  "owner": "",
+  "agent": "實作 agent",
+  "approvalRequired": false,
+  "createdAt": "2026-07-28",
+  "epic": "Webhook 接收與事件儲存",
+  "userStory": "事件接收、簽章驗證與冪等儲存（POST）",
+  "dependsOn": [
+    "TASK-001"
+  ],
+  "order": 16,
+  "readiness": {
+    "problem_clear": true,
+    "non_goals_clear": true,
+    "acceptance_testable": true,
+    "files_known": true,
+    "scope_defined": true,
+    "verification_contract": true,
+    "human_approval_recorded": true
+  },
+  "gates": {
+    "product": false,
+    "ui": false,
+    "architecture": false,
+    "security": false,
+    "test": true,
+    "code_review": false
+  },
+  "links": {
+    "featureSpec": "spec.md",
+    "screenSpec": "",
+    "mockupDecision": "",
+    "taskCard": "ai/artifacts/Webhook 接收與事件儲存/task-cards/TASK-016.md",
+    "verificationReport": "",
+    "pr": ""
+  },
+  "refs": [
+    "spec.md",
+    "src/webhook/event-parser.ts",
+    "tests/unit/event-parser.test.ts"
+  ],
+  "evidence": {
+    "commands": [
+      "npm run test",
+      "npm run lint && npm run typecheck && npm run build"
+    ],
+    "findings": [
+      "3 個測試通過（穩定 ID 原樣、SHA-256 穩定、不同 comment id 不同鍵）",
+      "全專案 78 測試通過，lint/typecheck/build 全綠"
+    ],
+    "residual": "完整 POST 接收（寫 webhook_events + 冪等 upsert + 送 Queue）需 D1/Queue 接線，屬後續卡。"
+  },
+  "comments": []
+}
