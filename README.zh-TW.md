@@ -1,167 +1,120 @@
-# Monstrare
+# Instagram Comment DM Bot
 
 [English](README.md) | **繁體中文**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**一個可直接複製使用的工作流程層，讓 AI coding agent 不會根據模糊需求就動手做出非小型變更。**
+**自架的 Instagram 自動化工具：有人在你的貼文留言命中關鍵字時，自動公開回覆並私訊對方——完整跑在 Cloudflare Workers 上。**
 
-把這個資料夾複製進任何專案，Claude Code、Codex 等 agentic 工具就會遵循同一套關卡流程——規格、規劃、任務卡、實作、驗證、審查——才讓程式碼進到 production。
+為「單一管理者管理自己的 Instagram 專業帳號」而設計。不依賴第三方 SaaS、沒有按訊息計費：你自己的 Meta App、你自己的 Cloudflare 帳號、你自己的資料。
 
-## Demo
+## 功能
 
-套件內建一個零依賴的本地看板（`tools/kanban/`，`npm run kanban`），把每個任務走過下面各關卡的進度視覺化。
+- **每篇貼文獨立的關鍵字自動化** —— 支援 `contains_any`／`exact_any`／`all_comments` 比對模式，含文字正規化與排除條件。
+- **每位留言者一次性公開回覆＋一則私訊**，公開回覆支援多變體輪替，私訊可選配可點擊的連結按鈕。
+- **冪等設計** —— webhook 事件與自動化執行都有去重機制，Meta 重送 webhook 不會造成重複回覆。
+- **自動重試與退避**（30 秒／2 分／10 分）處理 Meta API 暫時性失敗；永久性錯誤（token 失效、權限、政策）立即停止不重試。
+- **熔斷與緊急停止** —— 連續失敗自動停用該自動化；管理後台有一鍵全面停止開關。
+- **管理後台**（React SPA，路徑 `/admin`）—— 登入、貼文列表與同步、自動化編輯器、執行紀錄（含每次 Meta API 呼叫的錯誤細節）。
+- **內建安全性** —— webhook HMAC 簽章驗證（constant-time）、PBKDF2 密碼雜湊、HttpOnly Session Cookie、CSRF 防護、rate limiting、含機密遮蔽的結構化 log。
 
-![看板畫面](tools/kanban/docs/board-screenshot.png)
-![藍圖畫面](tools/kanban/docs/roadmap-screenshot.png)
-
-## 解決什麼問題
-
-- Agent 根據模糊的 prompt 就開始寫，產出又大又難審查的 diff。
-- 「看起來是對的」就直接上線，沒有測試、截圖或任何證據。
-- 架構與安全性審查發生在程式碼寫完之後，甚至根本沒發生。
-- 每個專案都在自己土法煉鋼一套跟 agent 協作的流程。
-
-## 架構：流程怎麼運作
-
-每個非小型（non-trivial）變更都會依序走過以下階段，完整定義見 `ai/process/workflow.md`：
-
-| 階段 | 輸出 | 關卡 |
-| --- | --- | --- |
-| 0. 收件（Intake） | 問題陳述、目標、限制、未知事項 | 需求模糊 → 進入釐清 |
-| 1. 情境探索 | 任務專屬情境包：相關檔案、既有模式、風險、驗證指令 | — |
-| 2. 釐清（Clarification） | `feature-spec.md`、非目標、驗收標準 | 人工核准 |
-| 3. UI Mockup（涉及 UI 時） | 畫面／狀態地圖、2-3 個變體、取捨比較 | 人工選定變體 |
-| 4. 架構規劃 | 變更檔案、資料／API 契約、回滾計畫 | 高風險 → architect + security + test 審查 |
-| 5. 任務卡 | 符合 `definition-of-ready.md` 的 AI-ready 卡片 | — |
-| 6. 實作 | 一次一張已核准的卡、diff 要小 | 範圍變動 → 停下來問 |
-| 7. 驗證 | 測試、型別檢查、lint、build、安全性掃描、截圖 | — |
-| 8. 審查 | 產品／UX／架構／安全性／測試／code review | `review-gates.md` |
-| 9. 人工驗收 | 變更了什麼、證據、殘留風險、後續任務 | 沒證據 → 不算完成 |
-
-全新專案、還沒有 Epic/User Story 待辦清單？先跑 `project-kickoff` skill——會把專案拆成 Epic → User Story → Task，並把資料建進 `tools/kanban/`。
-
-## 設計品質：兩層防線
-
-UI 工作由兩個互補的層次把關——只有流程會做出「合規但醜」的畫面，所以套件兩層都內建：
-
-1. **設計系統（用什麼）**——Epic 0 以五個人工關卡階段建立設計系統（框架 → 風格方向 → design token → 元件庫 → 版面），持久化在 `ai/context/design-system.md`。之後所有 UI 任務都必須重用這些 token／元件；缺的元件照既有風格補做並登記回元件庫 inventory。
-2. **設計工藝（怎麼做得好看）**——`ai/skills/design-craft.md` 承載視覺品質紀律（Refactoring UI 原則、type scale、4 的倍數間距、分階色彩系統、depth 規則、互動五態），並附一份高品質開源參考清單，設計前先比對、不憑記憶瞎猜。交付前逐項對照 `ai/checklists/design-review-checklist.md`。
-
-兩層都住在 repo 裡，所以任何電腦、任何 agent（Claude Code、Codex⋯）clone 下來就拿到同一套設計水準——不依賴某台電腦 home 目錄裡裝的隱形 skill。
-
-## 對每個 agent 設下的規則
-
-出自 `AGENTS.md`，任何 agent 動手做事之前都要先讀：
-
-- 不得根據模糊需求做非小型變更。
-- 從情境探索開始，不能靠假設。
-- 實作前要符合 `definition-of-ready.md`，宣告完成前要符合 `definition-of-done.md`。
-- UI 變更需要 `screen-spec.md` + `mockup-decision.md`，重用 `ai/context/design-system.md` 的設計系統，並遵循 `design-craft` 的視覺紀律。
-- 高風險變更需要架構 + 安全性 + 測試審查。
-- 優先沿用既有模式，而非新增抽象層。
-- 變更範圍限制在已核准任務卡內；動了不相關檔案要說清楚。
-- 沒有證據不能宣稱完成：指令、輸出、截圖、殘留風險。
-
-Agent 的輸出從來都不等於核准——每個關卡仍需人工簽核（見 `ai/process/review-gates.md`）。
-
-## 這套件取代了什麼
-
-| 參考來源 | 借用的概念 |
-| --- | --- |
-| BMAD Method | 角色制的 AI 敏捷工作流程 |
-| GitHub Spec Kit | 規格優先：clarify → plan → tasks → implement |
-| Kiro Specs | 需求、設計、任務產物 |
-| Task Master | PRD 拆解為任務、模型路由 |
-| Serena | 語意化專案搜尋與情境擷取 |
-| SuperClaude | slash-command 風格的可重複工作流程 |
-| Archon | 確定性、以關卡為基礎的流程執行 |
-| Plandex | 大情境規劃、diff 審查、受控執行 |
-| CodeRabbit / Qodo | 以審查為先的品質關卡 |
-
-不內建（vendor）這些工具——本套件是一層可以呼叫或與它們共存的流程。
-
-## 專案結構
+## 架構
 
 ```text
-AGENTS.md                     # Codex 入口
-CLAUDE.md                     # Claude Code 入口
-.claude/skills/               # Claude Code skills
-.claude/agents/               # Claude Code 子代理（subagents）
-.codex/skills/                # Codex skills
-.codex/config.toml            # Codex 本機預設設定（選用）
-ai/process/                   # 共用的流程規則
-ai/templates/                 # 規格書、任務卡、審查報告範本
-ai/context/                   # 專案地圖、設計系統與搜尋指引
-ai/checklists/                # 安全性、測試與設計審查檢查清單
-ai/skills/                    # .claude/skills 與 .codex/skills 共用的 skill 內容來源
-ai/artifacts/                 # 填寫完成的規格、mockup、任務卡、驗證報告（一個 Epic 一個資料夾）
-ai/examples/                  # 任務與功能產物範例
-tools/kanban/                 # 實作 ai/process/kanban.md 的本地看板
+Instagram 留言
+      │  webhook（簽章驗證）
+      ▼
+Cloudflare Worker (Hono) ──▶ Cloudflare Queue ──▶ Consumer：關鍵字比對
+      │                                             ├─ 公開回覆（Meta API）
+      ▼                                             └─ 私訊 DM（Meta API）
+Cloudflare D1 (SQLite)  ◀── 執行紀錄、API 呼叫紀錄、audit logs
+      ▲
+Cron：每日貼文同步 · Token 到期檢查
 ```
 
-## 快速開始
+技術棧：Cloudflare Workers · Hono · D1（Drizzle ORM）· Queues · Cron Triggers · React + Vite 管理後台。
 
-**要開新專案？** 直接把這個 repo clone 下來，在裡面直接開發——`AGENTS.md`、`CLAUDE.md` 與整套 `ai/` 工具已經在根目錄了。
+## 前置需求
+
+- **Cloudflare 帳號（Workers Paid 方案）**（Queues 需要付費方案），並已完成 `npx wrangler login`。
+- **Meta 開發者 App**（已加入 Instagram 產品）與一個你管理的 **Instagram 專業帳號**。
+- **Node.js 20+**。
+
+## Quick Start
+
+### 1. Cloudflare 端
 
 ```bash
-git clone https://github.com/pjwang2022/Monstrare.git my-project
-cd my-project
-rm -rf .git && git init   # 建立你自己的 git 歷史
+git clone https://github.com/pjwang2022/instagram-comment-dm-bot.git
+cd instagram-comment-dm-bot
+npm ci && npm ci --prefix admin
+
+# 建立 Cloudflare 資源
+npx wrangler d1 create ig-comment-dm-db      # 記下輸出的 database_id
+npx wrangler queues create ig-comment-events
+
+# 設定檔（wrangler.jsonc 已被 gitignore——它存放你的部署專屬值）
+cp wrangler.jsonc.example wrangler.jsonc
+#   → 填入 database_id、INSTAGRAM_ACCOUNT_ID、APP_BASE_URL、ADMIN_EMAIL
+
+# 正式環境機密。每個 secret 設定後約 30 秒才生效。
+npx wrangler secret put META_APP_SECRET
+npx wrangler secret put META_VERIFY_TOKEN        # 自訂隨機字串；步驟 2 會再用到
+npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
+npx wrangler secret put ADMIN_SESSION_SECRET     # 32 bytes 以上隨機值
+npx wrangler secret put TOKEN_ENCRYPTION_KEY     # 32 bytes 以上隨機值
+
+# 資料庫 schema
+npx wrangler d1 migrations apply ig-comment-dm-db --remote
+
+# 管理者帳號（互動式；產出 admin-insert.sql——雜湊含 `$`，務必用 --file）
+npm run create-admin
+npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
+
+# 部署
+npm run build --prefix admin
+npx wrangler deploy
 ```
 
-接著把它變成你的：把 `README.md`／`README.zh-TW.md` 換成你自己專案的說明、改掉 `package.json` 的 `name`，並可視需要刪除 `scripts/install-into-project.sh` 與 `tools/kanban/` 底下的看板選型史料（`mockups/`、`mockup-decision.md`、`screen-spec.md`）——那些屬於 Monstrare 本身，不是你的專案產物。
+### 2. Meta 端
 
-接著在這個資料夾裡開 Claude Code 或 Codex，直接講你想做什麼就好：
+1. 到 [Meta for Developers](https://developers.facebook.com/) 建立 App 並加入 **Instagram** 產品。
+2. 為你的專業帳號取得 access token，權限需涵蓋讀取留言、回覆留言與發送訊息（例如 `instagram_business_basic`、`instagram_business_manage_comments`、`instagram_business_manage_messages`——實際名稱以 Meta 官方文件為準），存入 `INSTAGRAM_ACCESS_TOKEN` secret。請使用**長效（long-lived）token** 並留意到期日——每日 cron 會在到期前提醒。
+3. 設定 webhook 訂閱：
+   - Callback URL：`https://<你的網域>/api/webhooks/meta/instagram`
+   - Verify token：與 `META_VERIFY_TOKEN` secret 相同的值
+   - 訂閱 **`comments`** 欄位。
+4. App 審核（App Review）需要公開的隱私政策網址——本專案內建於 `https://<你的網域>/privacy`（聯絡信箱讀取 `ADMIN_EMAIL`）。
 
-```text
-我要做一個線上預約系統。
-```
-
-因為還沒有 Epic/User Story 待辦清單，這會觸發 `project-kickoff` skill：把構想拆解成 Epic → User Story → Task，並把資料建進 `tools/kanban/`。之後每張任務卡會各自走過 [治理流程怎麼運作](#架構流程怎麼運作) 裡的各個階段。
-
-**要加進既有的專案？** 跳到下面的[安裝到既有專案](#安裝到既有專案)，然後從情境探索開始，而不是 `project-kickoff`：
-
-```text
-使用 project-search skill 建立 ai/context/project-map.md 與 ai/context/code-search-guide.md。
-先不要實作任何東西。
-```
-
-```text
-針對 <功能構想> 使用 spec-interrogation。
-建立功能規格書，若涉及 UI 則一併建立 screen spec，並產出 AI-ready 任務卡。
-實作前先停下來，等待人工審閱。
-```
-
-## 安裝到既有專案
+### 3. 驗證
 
 ```bash
-scripts/install-into-project.sh /path/to/your/project
+npm run check-meta    # 唯讀健康檢查：token 有效性、帳號、貼文
 ```
 
-會把流程檔案、範本、檢查清單、Claude/Codex skills 與 agents、治理自我檢查腳本、GitHub PR/issue 模板，以及看板工具（剔除 Monstrare 自己的看板選型史料）複製到目標專案。
+接著開啟 `https://<你的網域>/admin` 登入，同步貼文、建立自動化，再用另一個帳號在貼文下留言關鍵字測試。
 
-不會覆蓋：已存在的 `AGENTS.md`、`CLAUDE.md`、`ai/context/` 內的檔案、`ai/artifacts/`、`.codex/config.toml`，與既有的 `tools/kanban/`。一律更新為套件最新版：`ai/process/`、`ai/templates/`、`ai/checklists/`、`ai/skills/` 與 skill stubs——若你在專案裡改過這些套件檔案，重跑安裝前請先 commit。
+## 本機開發
 
 ```bash
-scripts/check-governance.sh   # 在本專案根目錄執行，做套件自我檢查
+cp .dev.vars.example .dev.vars    # 填入本機開發機密（已被 gitignore）
+npx wrangler d1 migrations apply ig-comment-dm-db --local
+npm run dev                        # wrangler dev
+npm run test                       # vitest（單元＋整合測試）
+npm run lint && npm run typecheck
 ```
 
-## AI 看板
+注意：`wrangler dev` 不會強制所有正式 Workers 限制（例如 PBKDF2 單次 100k 迭代上限）。認證相關流程請務必在部署後的 Worker 上實測。
 
-`ai/process/kanban.md` 是看板政策——追蹤的是任務是否已就緒、可以安全交給 agent 執行，而不只是狀態。`tools/kanban/` 是這個政策的其中一種實作：零依賴的本地看板，把政策的 12 個階段簡化成 6 條車道（Backlog → Blocked → Ready → Implementing → Verify → Done）。這個工具是選用的，政策本身不要求一定要用它。
+## 文件
 
-```bash
-npm run kanban   # 開 http://127.0.0.1:4420
-```
+- [`spec.md`](spec.md) —— 完整技術規格：資料模型、API、比對規則、重試與熔斷語意。
+- [`CLAUDE.md`](CLAUDE.md)／[`AGENTS.md`](AGENTS.md) —— 給 AI coding agent 的指令。本專案使用 [Monstrare](https://github.com/pjwang2022/Monstrare) 開發——一套有關卡的 AI 工作流程（規格 → 任務卡 → 驗證 → 審查），流程檔案位於 `ai/`。
 
-![看板畫面](tools/kanban/docs/board-screenshot.png)
+## 安全性說明
 
-- **新增卡片**——點任一車道底部的「+ 新增卡片」，id 由 server 自動配號。
-- **移動卡片**——拖到別的車道就改變階段，同車道內拖曳可調整順序。
-- **編輯詳情**——點卡片開啟詳情面板：owner、risk、agent、Readiness 勾選、Review Gates、留言。
-- **依 Epic/User Story 看進度**——切到右上角「藍圖」分頁。
+所有機密只存在 Cloudflare Secrets（正式環境）或 `.dev.vars`（本機，已被 gitignore）——永不寫入被 git 追蹤的檔案。`wrangler.jsonc` 也被 gitignore，因為它含部署專屬值；變更 bindings 時請同步更新 `wrangler.jsonc.example`。
 
-![藍圖畫面](tools/kanban/docs/roadmap-screenshot.png)
+## License
 
-所有操作都即時寫回 `cards/*.json`——沒有儲存按鈕、沒有資料庫；`git commit`／`git push` 就是存檔與分享狀態的方式。完整的欄位規格與 API 說明：[`tools/kanban/README.md`](tools/kanban/README.md)。
+[MIT](LICENSE)

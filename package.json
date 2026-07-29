@@ -1,5 +1,5 @@
 {
-  "name": "ig-comment-dm-bot",
+  "name": "instagram-comment-dm-bot",
   "private": true,
   "description": "Instagram 留言關鍵字自動私訊系統（IG Comment DM Bot），採 Monstrare 治理工作流開發。",
   "license": "MIT",
