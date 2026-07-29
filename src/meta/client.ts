@@ -21,17 +21,22 @@ export interface MetaCallResult<T = unknown> {
 function classifyMetaError(status: number, body: any): MetaApiFailure {
   const error = body?.error ?? {};
   const code = typeof error.code === 'number' ? error.code : undefined;
+  // 觀測欄位：錯誤碼與訊息一律帶回（寫入 api_attempts 供除錯）。
+  const meta = {
+    metaErrorCode: code !== undefined ? String(code) : undefined,
+    metaErrorMessage: typeof error.message === 'string' ? error.message.slice(0, 300) : undefined,
+  };
 
   // 常見不可重試：190 token 失效；10/200/803 權限；100 參數錯誤；368 政策限制。
-  if (code === 190) return { httpStatus: status, nonRetryableReason: 'token_invalid' };
+  if (code === 190) return { httpStatus: status, nonRetryableReason: 'token_invalid', ...meta };
   if (code === 10 || code === 200 || code === 803) {
-    return { httpStatus: status, nonRetryableReason: 'permission_denied' };
+    return { httpStatus: status, nonRetryableReason: 'permission_denied', ...meta };
   }
-  if (code === 100) return { httpStatus: status, nonRetryableReason: 'bad_request' };
-  if (code === 368) return { httpStatus: status, nonRetryableReason: 'policy_restricted' };
+  if (code === 100) return { httpStatus: status, nonRetryableReason: 'bad_request', ...meta };
+  if (code === 368) return { httpStatus: status, nonRetryableReason: 'policy_restricted', ...meta };
 
   // 其餘依 HTTP 狀態分類（429/5xx 可重試，其他 4xx 不可）。
-  return { httpStatus: status };
+  return { httpStatus: status, ...meta };
 }
 
 export class MetaClient {

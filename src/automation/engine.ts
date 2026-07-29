@@ -16,7 +16,7 @@ import {
   webhookEvents,
 } from '../database/schema';
 import type { MetaClient } from '../meta/client';
-import { isRetryable } from '../meta/errors';
+import { PERMANENT_REASONS, isRetryable } from '../meta/errors';
 import { replyToComment } from '../meta/comments';
 import { sendPrivateReply } from '../meta/private-replies';
 import type { CommentEventMessage } from '../queue/producer';
@@ -45,7 +45,10 @@ async function recordAttempt(
   runId: string,
   actionType: string,
   attemptNumber: number,
-  result: { status: number; failure?: { httpStatus?: number } },
+  result: {
+    status: number;
+    failure?: { httpStatus?: number; metaErrorCode?: string; metaErrorMessage?: string };
+  },
 ): Promise<void> {
   await db.insert(apiAttempts).values({
     id: crypto.randomUUID(),
@@ -53,6 +56,8 @@ async function recordAttempt(
     actionType,
     attemptNumber,
     httpStatus: result.status || result.failure?.httpStatus || null,
+    metaErrorCode: result.failure?.metaErrorCode ?? null,
+    metaErrorMessage: result.failure?.metaErrorMessage ?? null,
     completedAt: new Date().toISOString(),
   });
 }
@@ -202,6 +207,15 @@ export async function processCommentEvent(
       if (res.ok) {
         privateStatus = 'success';
       } else if (res.failure && isRetryable(res.failure)) {
+        retryable = true;
+      } else if (
+        res.failure &&
+        res.failure.httpStatus === 400 &&
+        !PERMANENT_REASONS.has(res.failure.nonRetryableReason ?? '')
+      ) {
+        // 實測發現：對「非常新的留言」立即發 private reply，Meta 偶爾回暫時性 400
+        // （同一請求數十秒後重打即成功）。因此 DM 的 400（非 token/權限/政策）
+        // 走重試路徑（30s/2m/10m 最多三次），而不是立刻放棄。
         retryable = true;
       } else {
         privateStatus = 'failed';

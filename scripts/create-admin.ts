@@ -3,6 +3,7 @@
 // 密碼只能透過 stdin 互動輸入（不接受命令列參數），避免明文密碼留在 shell history。
 // 執行：npx tsx scripts/create-admin.ts
 import { randomUUID } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
 import { hashPassword } from '../src/security/password';
 
 const ENTER = '\r';
@@ -103,13 +104,19 @@ async function main() {
 
   const sql = `INSERT INTO admin_users (id, email, password_hash, created_at, updated_at) VALUES ('${id}', '${escapeSqlString(
     email,
-  )}', '${escapeSqlString(passwordHash)}', '${now}', '${now}');`;
+  )}', '${escapeSqlString(passwordHash)}', '${now}', '${now}');\n`;
 
-  console.log('\n產生的 SQL（請自行執行，本腳本不會直接連線到任何 D1 資料庫）：\n');
-  console.log(sql);
-  console.log('\n本機資料庫：npx wrangler d1 execute DB --local --command="<上面的 SQL>"');
-  console.log('遠端正式環境：npx wrangler d1 execute DB --remote --command="<上面的 SQL>"');
-  console.log('\n執行後請勿把上面這段 SQL（含密碼雜湊值）留在終端機紀錄或分享給他人。');
+  // 重要：密碼雜湊含 $ 符號（pbkdf2$sha256$...）。若把 SQL 貼進
+  // `wrangler d1 execute --command="..."`，shell 會把 $sha256 等當環境變數展開、
+  // 打爛雜湊 → 登入失敗。所以一律寫成「檔案」，用 --file 套用（檔案內容不經 shell）。
+  const outFile = 'admin-insert.sql';
+  writeFileSync(outFile, sql);
+
+  console.log(`\n已將 INSERT 寫入檔案：${outFile}`);
+  console.log('\n請用 --file 套用（不要用 --command，否則 shell 會吃掉雜湊裡的 $）：');
+  console.log(`  本機：  npx wrangler d1 execute DB --local  --file=${outFile}`);
+  console.log(`  正式：  npx wrangler d1 execute DB --remote --file=${outFile}`);
+  console.log(`\n套用後請刪掉該檔（含密碼雜湊）：  rm ${outFile}`);
 
   process.exit(0);
 }

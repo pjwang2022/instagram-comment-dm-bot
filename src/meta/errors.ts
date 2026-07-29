@@ -13,7 +13,18 @@ export interface MetaApiFailure {
     | 'automation_disabled'
     | 'policy_restricted'
     | 'user_not_allowed';
+  // Meta 回應的錯誤碼與訊息（觀測用，寫進 api_attempts 方便除錯）。
+  metaErrorCode?: string;
+  metaErrorMessage?: string;
 }
+
+// 這些原因即使 HTTP 400 也絕不重試（token/權限/政策是永久性的）。
+export const PERMANENT_REASONS: ReadonlySet<string> = new Set([
+  'token_invalid',
+  'permission_denied',
+  'policy_restricted',
+  'user_not_allowed',
+]);
 
 const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 

@@ -6,6 +6,18 @@
 
 - 保持 `CLAUDE.md` 簡短。可重複使用的工作流程放在 `.claude/skills/`。
 
+## Clone 後初始化（新環境必做）
+
+1. 安裝依賴：`npm ci` 與 `npm ci --prefix admin`。
+2. `cp wrangler.jsonc.example wrangler.jsonc`（`wrangler.jsonc` 已被 `.gitignore` 排除，含部署專屬值，不進版控）。以 `wrangler d1 create ig-comment-dm-db`、`wrangler queues create ig-comment-events` 建立 Cloudflare 資源後，回填 `database_id` 與各 `<TODO:...>` 欄位（`INSTAGRAM_ACCOUNT_ID`／`APP_BASE_URL`／`ADMIN_EMAIL`）。
+3. `cp .dev.vars.example .dev.vars`，填入本機開發用機密（同樣不進版控）。
+4. 正式環境機密逐一 `wrangler secret put <NAME>`：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`、`TOKEN_ENCRYPTION_KEY`。設定後約 30 秒才生效，勿立即以舊回應誤判。
+5. 套用資料庫 migrations：`wrangler d1 migrations apply ig-comment-dm-db --local`（本機）或 `--remote`（正式）。
+6. 建立管理者帳號：`npm run create-admin`（互動式，產出 `admin-insert.sql`），再依畫面指示用 `npx wrangler d1 execute DB --local --file=admin-insert.sql`（正式改 `--remote`）套用，套用後刪除該檔。務必用 `--file`、不要貼進 `--command`（密碼雜湊含 `$`，會被 shell 展開打爛）。
+7. 驗證環境：`npm run check-meta`（Meta token 健康檢查）→ `npm run test` → `npm run dev`。
+
+規則：機密一律走 `.dev.vars`（本機）或 `wrangler secret put`（正式），永不寫入任何被 git 追蹤的檔案。若 `wrangler.jsonc` 的結構（bindings、queues、crons 等）有變更，必須同步更新 `wrangler.jsonc.example`——CI 的 build 步驟依賴該範本。
+
 ## Skill 路由
 
 - 全新專案的 Epic/User Story/Task 拆解：`project-kickoff`

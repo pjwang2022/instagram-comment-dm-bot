@@ -177,6 +177,51 @@ describe('processCommentEvent — exclusions and no-match', () => {
 });
 
 describe('processCommentEvent — retry semantics', () => {
+  it('retries a DM 400 (fresh-comment race) instead of failing permanently', async () => {
+    await seedAutomation();
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+
+    // public reply 成功；DM 回 400（無已知永久錯誤碼）→ 應排重試而非 failed
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('/messages')) {
+        return new Response(JSON.stringify({ error: { message: 'transient', code: 1 } }), { status: 400 });
+      }
+      return new Response(JSON.stringify({ id: 'r' }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new MetaClient({ accessToken: 't', graphApiVersion: 'v21.0', fetchImpl });
+
+    const first = await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+    expect(first.kind).toBe('retry');
+    if (first.kind === 'retry') expect(first.delaySeconds).toBe(30);
+
+    // 重試時 DM 成功 → completed，且公開回覆不再重送
+    const okFetch = vi.fn(async () => new Response(JSON.stringify({ message_id: 'm' }), { status: 200 })) as unknown as typeof fetch;
+    const second = await processCommentEvent(
+      { db, metaClient: new MetaClient({ accessToken: 't', graphApiVersion: 'v21.0', fetchImpl: okFetch }) },
+      msg('c1', evt),
+    );
+    expect(second.kind).toBe('completed');
+    if (second.kind === 'completed') expect(second.privateReplyStatus).toBe('success');
+    const publicCalls = (fetchImpl as unknown as { mock: { calls: string[][] } }).mock.calls.filter((c) => c[0].includes('/replies'));
+    expect(publicCalls).toHaveLength(1);
+  });
+
+  it('does NOT retry a DM 400 with a permanent reason (permission denied)', async () => {
+    await seedAutomation();
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('/messages')) {
+        return new Response(JSON.stringify({ error: { message: 'no perm', code: 10 } }), { status: 400 });
+      }
+      return new Response(JSON.stringify({ id: 'r' }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new MetaClient({ accessToken: 't', graphApiVersion: 'v21.0', fetchImpl });
+
+    const outcome = await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+    expect(outcome.kind).toBe('completed');
+    if (outcome.kind === 'completed') expect(outcome.privateReplyStatus).toBe('failed');
+  });
+
   it('retries on a retryable DM failure without re-sending the public reply', async () => {
     await seedAutomation();
     const evt = await seedWebhookEvent('c1', '我想要 ADHD');

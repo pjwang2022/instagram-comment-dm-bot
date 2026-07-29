@@ -1,3 +1,7 @@
+// wrangler.jsonc 範本。複製這個檔案為 wrangler.jsonc（該檔名已被 .gitignore 排除，
+// 不會被提交），把 <TODO:...> 與 <D1_DATABASE_ID> 換成你自己的部署值。
+// 機密（META_APP_SECRET 等）不放這裡：本機開發用 .dev.vars（見 .dev.vars.example），
+// 正式環境用 `wrangler secret put <NAME>` 個別設定。
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ig-comment-dm-bot",
@@ -16,9 +20,9 @@
   // META_GRAPH_API_VERSION：串接 Meta API 前，請對照 Meta for Developers 官方文件
   // 確認當下最新的 Graph API 版本號，不要沿用這裡的 placeholder。
   "vars": {
-    "META_GRAPH_API_VERSION": "<TODO:確認目前最新 Graph API 版本>",
+    "META_GRAPH_API_VERSION": "v21.0",
     "INSTAGRAM_ACCOUNT_ID": "<TODO:填入 Instagram Professional Account ID>",
-    "APP_ENV": "development",
+    "APP_ENV": "production",
     "APP_BASE_URL": "<TODO:填入正式網域，例如 https://igbot.example.com>",
     "ADMIN_EMAIL": "<TODO:填入管理者登入 Email>",
     "LOG_LEVEL": "info"

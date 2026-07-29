@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PBKDF2_ITERATIONS,
-  PBKDF2_ITERATIONS_FLOOR,
+  PBKDF2_EFFECTIVE_FLOOR,
+  PBKDF2_EFFECTIVE_ITERATIONS,
+  PBKDF2_ITERATIONS_PER_ROUND,
   getDummyHash,
   hashPassword,
   verifyPassword,
@@ -24,14 +25,16 @@ describe('password hashing', () => {
     expect(hashA).not.toBe(hashB);
   });
 
-  it('never lowers the PBKDF2 iterations below the OWASP floor', () => {
-    expect(PBKDF2_ITERATIONS).toBeGreaterThanOrEqual(PBKDF2_ITERATIONS_FLOOR);
-    expect(PBKDF2_ITERATIONS_FLOOR).toBe(600_000);
+  it('keeps effective iterations at/above the OWASP floor while staying within the Workers per-call cap', () => {
+    expect(PBKDF2_EFFECTIVE_ITERATIONS).toBeGreaterThanOrEqual(PBKDF2_EFFECTIVE_FLOOR);
+    expect(PBKDF2_EFFECTIVE_FLOOR).toBe(600_000);
+    // Cloudflare Workers 正式 runtime 硬上限：單次呼叫不得超過 100,000。
+    expect(PBKDF2_ITERATIONS_PER_ROUND).toBeLessThanOrEqual(100_000);
   });
 
-  it('produces a self-describing pbkdf2-encoded hash', async () => {
+  it('produces a self-describing iterated-pbkdf2 hash', async () => {
     const hash = await hashPassword('encode-me');
-    expect(hash.startsWith('pbkdf2$sha256$600000$')).toBe(true);
+    expect(hash.startsWith('pbkdf2$sha256$100000x6$')).toBe(true);
     expect(hash.split('$')).toHaveLength(5);
   });
 
