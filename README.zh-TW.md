@@ -23,7 +23,7 @@
 
 - 編輯 `wrangler.jsonc` → 把 `<TODO:...>` 換成實際值（`INSTAGRAM_ACCOUNT_ID`、`APP_BASE_URL`、`ADMIN_EMAIL`）後 push，會自動重新部署。
 - 完成 [Meta 端設定](#2-meta-端)（webhook 訂閱＋access token）。
-- 建立[管理者帳號](#1-cloudflare-端)。
+- 建立[管理者帳號](#3-建立管理者帳號)。
 
 想全程手動操作？請看下方完整的 [Quick Start](#quick-start)。
 
@@ -86,10 +86,6 @@ npx wrangler secret put TOKEN_ENCRYPTION_KEY     # 32 bytes 以上隨機值
 
 # 部署（建置管理後台、套用 D1 migrations、部署 Worker 一次完成）
 npm run deploy
-
-# 管理者帳號（互動式；產出 admin-insert.sql——雜湊含 `$`，務必用 --file）
-npm run create-admin
-npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
 ```
 
 ### 2. Meta 端
@@ -102,7 +98,20 @@ npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.s
    - 訂閱 **`comments`** 欄位。
 4. App 審核（App Review）需要公開的隱私政策網址——本專案內建於 `https://<你的網域>/privacy`（聯絡信箱讀取 `ADMIN_EMAIL`）。
 
-### 3. 驗證
+### 3. 建立管理者帳號
+
+後台沒有開放註冊——唯一的管理者帳號要從你的電腦建立。若你是用按鈕部署的，請先 clone **你自己的 repo 副本**，再執行 `npm ci` 與 `npx wrangler login`。
+
+```bash
+# 互動式：輸入 Email 與密碼，產出 admin-insert.sql
+#（密碼雜湊含 `$`，務必用 --file 套用，不要貼進 --command）
+npm run create-admin
+npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
+```
+
+完成後到 `https://<你的網域>/admin` 登入。
+
+### 4. 驗證
 
 ```bash
 npm run check-meta    # 唯讀健康檢查：token 有效性、帳號、貼文

@@ -23,7 +23,7 @@ After the first deploy, finish up in your own repo copy:
 
 - Edit `wrangler.jsonc` → replace the `<TODO:...>` values (`INSTAGRAM_ACCOUNT_ID`, `APP_BASE_URL`, `ADMIN_EMAIL`) and push — it redeploys automatically.
 - Complete the [Meta side setup](#2-meta-side) (webhook subscription + access token).
-- Create your [admin account](#1-cloudflare-side).
+- Create your [admin account](#3-create-the-admin-account).
 
 Prefer doing everything by hand? Follow the full [Quick Start](#quick-start) below.
 
@@ -86,10 +86,6 @@ npx wrangler secret put TOKEN_ENCRYPTION_KEY     # 32+ random bytes
 
 # Deploy (builds the admin SPA, applies D1 migrations, deploys the Worker)
 npm run deploy
-
-# Admin account (interactive; writes admin-insert.sql — the hash contains `$`, so always use --file)
-npm run create-admin
-npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
 ```
 
 ### 2. Meta side
@@ -102,7 +98,20 @@ npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.s
    - Subscribe to the **`comments`** field.
 4. App Review requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (contact email comes from `ADMIN_EMAIL`).
 
-### 3. Verify
+### 3. Create the admin account
+
+The dashboard has no self-signup — you create the single admin account from your machine. If you deployed via the button, first clone **your repo copy**, then run `npm ci` and `npx wrangler login`.
+
+```bash
+# Interactive: asks for email + password, writes admin-insert.sql
+# (the password hash contains `$`, so always apply it with --file, never --command)
+npm run create-admin
+npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
+```
+
+Then log in at `https://<your-domain>/admin`.
+
+### 4. Verify
 
 ```bash
 npm run check-meta    # read-only health check: token validity, account, media
