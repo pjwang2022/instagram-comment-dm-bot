@@ -20,14 +20,24 @@
   },
   // 一般 Variables（非機密，見 spec.md 第 22 節）。正式部署前請把下列 <TODO:...>
   // 換成實際值；本機開發時可在 .dev.vars 覆寫（見 .dev.vars.example）。
-  // META_GRAPH_API_VERSION：串接 Meta API 前，請對照 Meta for Developers 官方文件
-  // 確認當下最新的 Graph API 版本號，不要沿用這裡的 placeholder。
   "vars": {
+    // 串接前請對照 Meta 官方文件確認當下最新的 Graph API 版本號，不要沿用這裡的預設值。
     "META_GRAPH_API_VERSION": "v21.0",
-    "INSTAGRAM_ACCOUNT_ID": "<TODO:填入 Instagram Professional Account ID>",
+    // Instagram 專業帳號的「數字 ID」（不是 @帳號名稱），格式類似 17841400000000000。
+    // 取得方式（擇一）：
+    //   a. 瀏覽器開 https://graph.instagram.com/me?fields=user_id,username&access_token=<你的 access token>
+    //      回傳 JSON 裡的 user_id 就是。
+    //   b. 本機執行 npm run check-meta（.dev.vars 填好 token 即可），會自動印出帳號 ID。
+    "INSTAGRAM_ACCOUNT_ID": "<TODO:填入 Instagram 帳號的數字 ID>",
     "APP_ENV": "production",
-    "APP_BASE_URL": "<TODO:填入正式網域，例如 https://igbot.example.com>",
-    "ADMIN_EMAIL": "<TODO:填入管理者登入 Email>",
+    // 這個 Worker 對外的完整網址（含 https://、結尾不要斜線）。
+    // 沒有自訂網域就填部署後 Cloudflare 給的 workers.dev 網址，
+    // 例如 https://ig-comment-dm-bot.<你的子網域>.workers.dev（可在 Workers Dashboard 看到）。
+    // 注意：後台登入的 CSRF 防護會精確比對這個值——填錯或含多餘斜線會導致後台無法登入。
+    "APP_BASE_URL": "<TODO:填入 Worker 對外網址，例如 https://xxx.workers.dev>",
+    // 顯示在 /privacy 隱私政策頁上的聯絡信箱（Meta App 審核要求提供）。
+    // 與後台登入帳號無關——登入用的 Email 是在 /admin 首次設定表單建立的。
+    "ADMIN_EMAIL": "<TODO:填入公開的聯絡信箱>",
     "LOG_LEVEL": "info"
   },
   "d1_databases": [

@@ -21,7 +21,7 @@ Clicking the button will:
 
 After the first deploy, finish up in your own repo copy:
 
-- Edit `wrangler.jsonc` → replace the `<TODO:...>` values (`INSTAGRAM_ACCOUNT_ID`, `APP_BASE_URL`, `ADMIN_EMAIL`) and push — it redeploys automatically.
+- Edit `wrangler.jsonc` → replace the `<TODO:...>` values (`INSTAGRAM_ACCOUNT_ID`, `APP_BASE_URL`, `ADMIN_EMAIL`) and push — it redeploys automatically. How to obtain each value is explained in the comments right inside the file.
 - Complete the [Meta side setup](#2-meta-side) (webhook subscription + access token).
 - Open `/admin` and [create your admin account](#3-create-the-admin-account) on the first-run setup page — do this right after deploying.
 
@@ -74,6 +74,7 @@ npx wrangler queues create ig-comment-events
 
 # Configure: edit wrangler.jsonc
 #   → fill in database_id, INSTAGRAM_ACCOUNT_ID, APP_BASE_URL, ADMIN_EMAIL
+#   (how to obtain each value is explained in the comments inside wrangler.jsonc)
 # If you plan to contribute back, keep your personal values out of commits:
 git update-index --skip-worktree wrangler.jsonc
 

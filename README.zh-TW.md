@@ -21,7 +21,7 @@
 
 首次部署完成後，到你自己的 repo 收尾：
 
-- 編輯 `wrangler.jsonc` → 把 `<TODO:...>` 換成實際值（`INSTAGRAM_ACCOUNT_ID`、`APP_BASE_URL`、`ADMIN_EMAIL`）後 push，會自動重新部署。
+- 編輯 `wrangler.jsonc` → 把 `<TODO:...>` 換成實際值（`INSTAGRAM_ACCOUNT_ID`、`APP_BASE_URL`、`ADMIN_EMAIL`）後 push，會自動重新部署。每個欄位怎麼取得，檔案內的註解都有逐一說明。
 - 完成 [Meta 端設定](#2-meta-端)（webhook 訂閱＋access token）。
 - 打開 `/admin`，在首次啟動設定頁[建立管理者帳號](#3-建立管理者帳號)——部署完請盡快做這步。
 
@@ -74,6 +74,7 @@ npx wrangler queues create ig-comment-events
 
 # 設定：直接編輯 wrangler.jsonc
 #   → 填入 database_id、INSTAGRAM_ACCOUNT_ID、APP_BASE_URL、ADMIN_EMAIL
+#   （每個欄位的取得方式，wrangler.jsonc 檔內的註解都有逐一說明）
 # 若你之後會貢獻程式碼回來，先讓個人部署值不會被提交：
 git update-index --skip-worktree wrangler.jsonc
 
