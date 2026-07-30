@@ -3,13 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppBindings } from '../app';
 import { createDb } from '../database/client';
-import {
-  auditLogs,
-  automationRuns,
-  automations,
-  instagramAccounts,
-  systemSettings,
-} from '../database/schema';
+import { auditLogs, automationRuns, instagramAccounts, systemSettings } from '../database/schema';
 import { csrfMiddleware } from '../security/csrf';
 import { adminApiRateLimitMiddleware } from '../security/rate-limit';
 import { requireAdminAuth } from './auth';
@@ -57,49 +51,32 @@ export function createSystemRoutes() {
   app.get('/status', adminApiRateLimitMiddleware(), async (c) => {
     const db = createDb(c.env.DB);
     const settings = await ensureSettings(db);
-    const accounts = await db.select().from(instagramAccounts);
-    const autos = await db.select().from(automations);
-    const platformByAuto = new Map(
-      autos.map((a: { id: string; platform: string | null }) => [a.id, a.platform ?? 'instagram']),
-    );
+    const accounts = await db.select().from(instagramAccounts).limit(1);
 
-    // 今日統計（以 automation_runs.created_at 當天），可依平台切分。
+    // 今日統計（以 automation_runs.created_at 當天）
     const todayPrefix = new Date().toISOString().slice(0, 10);
     const runs = await db
       .select()
       .from(automationRuns)
       .where(sql`substr(${automationRuns.createdAt}, 1, 10) = ${todayPrefix}`);
 
-    type Run = { automationId: string; publicReplyStatus: string | null; privateReplyStatus: string | null; status: string };
-    const summarize = (rs: Run[]) => ({
-      matched: rs.length,
-      publicReplySuccess: rs.filter((r) => r.publicReplyStatus === 'success').length,
-      dmSuccess: rs.filter((r) => r.privateReplyStatus === 'success').length,
-      failures: rs.filter((r) => r.status === 'completed_with_errors').length,
-    });
+    const publicSuccess = runs.filter((r: { publicReplyStatus: string | null }) => r.publicReplyStatus === 'success').length;
+    const dmSuccess = runs.filter((r: { privateReplyStatus: string | null }) => r.privateReplyStatus === 'success').length;
+    const failures = runs.filter(
+      (r: { status: string }) => r.status === 'completed_with_errors',
+    ).length;
 
     return c.json({
       emergencyStop: settings.emergencyStop === 1,
-      // 相容欄位（沿用第一個帳號）；新版 UI 請改用 platforms 陣列。
       circuitBreakerStatus: accounts[0]?.circuitBreakerStatus ?? 'unknown',
       tokenExpiresAt: accounts[0]?.tokenExpiresAt ?? null,
       lastWebhookReceivedAt: accounts[0]?.lastWebhookReceivedAt ?? null,
-      today: summarize(runs as Run[]),
-      // 每個已連接平台一筆：帳號資訊 + 該平台的今日統計（IG/FB 完全分開監控）。
-      platforms: accounts.map((a) => {
-        const platform = a.platform ?? 'instagram';
-        return {
-          platform,
-          username: a.username,
-          circuitBreakerStatus: a.circuitBreakerStatus,
-          tokenExpiresAt: a.tokenExpiresAt,
-          lastWebhookReceivedAt: a.lastWebhookReceivedAt,
-          automationEnabled: a.automationEnabled === 1,
-          today: summarize(
-            (runs as Run[]).filter((r) => platformByAuto.get(r.automationId) === platform),
-          ),
-        };
-      }),
+      today: {
+        matched: runs.length,
+        publicReplySuccess: publicSuccess,
+        dmSuccess,
+        failures,
+      },
     });
   });
 

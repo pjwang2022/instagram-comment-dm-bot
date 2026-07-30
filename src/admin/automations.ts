@@ -24,7 +24,6 @@ type ApplyScope = (typeof VALID_APPLY_SCOPES)[number];
 interface CreateBody {
   instagramMediaId?: string;
   applyScope?: string;
-  platform?: string;
   name?: string;
   matchType?: string;
   keywords?: unknown;
@@ -98,10 +97,6 @@ export function createAutomationRoutes() {
       return c.json({ error: '比對模式無效' }, 400);
     }
 
-    // 平台：media-scoped 跟隨貼文；scoped（next_post/account_default）由請求指定（預設 IG）。
-    let platform: 'instagram' | 'facebook' =
-      body.platform === 'facebook' ? 'facebook' : 'instagram';
-
     const db = createDb(c.env.DB);
     if (applyScope === 'media') {
       const media = await db
@@ -110,17 +105,16 @@ export function createAutomationRoutes() {
         .where(eq(instagramMedia.id, body.instagramMediaId!))
         .limit(1);
       if (media.length === 0) return c.json({ error: '貼文不存在' }, 404);
-      platform = (media[0].platform ?? 'instagram') as 'instagram' | 'facebook';
     }
     if (applyScope === 'account_default') {
-      // 全帳號預設「每個平台」只允許一組，多組會讓「該套用哪組」變得不可預期。
+      // 全帳號預設只允許一組，多組會讓「該套用哪組」變得不可預期。
       const existing = await db
         .select()
         .from(automations)
-        .where(and(eq(automations.applyScope, 'account_default'), eq(automations.platform, platform)))
+        .where(eq(automations.applyScope, 'account_default'))
         .limit(1);
       if (existing[0]) {
-        return c.json({ error: '此平台已存在全帳號預設自動化，請編輯既有的那一組' }, 409);
+        return c.json({ error: '已存在全帳號預設自動化，請編輯既有的那一組' }, 409);
       }
     }
 
@@ -129,7 +123,6 @@ export function createAutomationRoutes() {
       id: automationId,
       instagramMediaId: applyScope === 'media' ? body.instagramMediaId! : null,
       applyScope,
-      platform,
       name: body.name,
       status: 'draft',
       matchType,
@@ -169,7 +162,6 @@ export function createAutomationRoutes() {
           name: a.name,
           status: a.status,
           applyScope: a.applyScope,
-          platform: a.platform,
           matchType: a.matchType,
           keywordCount: kws.filter((k: { automationId: string }) => k.automationId === a.id).length,
           media: media

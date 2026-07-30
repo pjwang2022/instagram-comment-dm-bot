@@ -18,8 +18,6 @@ export type AppBindings = {
   INSTAGRAM_APP_SECRET: string;
   WEBHOOK_VERIFY_TOKEN: string;
   INSTAGRAM_ACCOUNT_ACCESS_TOKEN: string;
-  // 選配：Facebook 粉專留言自動化用的 Page Access Token（未設定則 FB 功能停用）。
-  FACEBOOK_PAGE_ACCESS_TOKEN?: string;
   ADMIN_SESSION_SECRET: string;
   META_GRAPH_API_VERSION: string;
   META_BASE_URL?: string;

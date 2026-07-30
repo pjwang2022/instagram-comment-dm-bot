@@ -29,7 +29,6 @@ Prefer doing everything by hand? Follow the full [Quick Start](#quick-start) bel
 ## Features
 
 - **Keyword automations per post** — `contains_any` / `exact_any` / `all_comments` matching with text normalization and exclusion rules.
-- **Facebook Pages too (optional)** — set a Page Access Token and the same keyword automations work on Facebook Page post comments (public reply + Messenger private reply).
 - **Works with scheduled posts** — the Instagram API can't see unpublished posts, so you can pre-arm a "next post" automation (auto-binds the moment the post goes live, catching even the first comment) or set an account-wide default for all new posts.
 - **One-time public reply + one DM** per commenter, with rotating public reply variants and an optional link button in the DM.
 - **Idempotent by design** — webhook events and automation runs are deduplicated, so Meta's webhook retries never cause double replies.
@@ -90,8 +89,6 @@ npm run deploy
    - Verify token: the same value you stored as `WEBHOOK_VERIFY_TOKEN`
    - Subscribe to the **`comments`** field.
 4. App Review requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (the contact email shown is your admin account's email).
-
-**Optional — Facebook Pages**: add the **Messenger** product to the same Meta app, connect your Page and generate a **Page Access Token** (permissions incl. `pages_messaging`, `pages_manage_engagement`), store it as the `FACEBOOK_PAGE_ACCESS_TOKEN` secret, then configure the Page webhook: callback `https://<your-domain>/api/webhooks/meta/facebook`, the same verify token, subscribed to the **`feed`** field. Page posts appear in the dashboard after the next sync; automations work the same way.
 
 ### 3. Create the admin account
 

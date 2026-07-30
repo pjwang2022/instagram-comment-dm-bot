@@ -6,7 +6,6 @@ import { apiGet, apiPost, type ApiError } from '../api/client';
 
 interface Media {
   id: string;
-  platform?: string;
   mediaType: string;
   caption: string | null;
   thumbnailUrl: string | null;
@@ -20,12 +19,10 @@ interface OverviewAutomation {
   name: string;
   status: string;
   applyScope: string;
-  platform?: string;
   media: { id: string } | null;
 }
 
 function typeLabel(t: string): string {
-  if (t === 'POST') return 'FB 貼文';
   if (t === 'VIDEO') return '影片';
   if (t === 'REELS') return 'Reels';
   if (t === 'CAROUSEL_ALBUM') return '多圖';
@@ -146,7 +143,7 @@ export function MediaPage() {
           <div>
             <h1 className="page-title">貼文</h1>
             <p className="page-subtitle" style={{ marginBottom: 0 }}>
-              從 Instagram／Facebook 粉專同步的貼文，為某篇設定留言關鍵字自動回覆。
+              從 Instagram 同步的貼文與 Reels，為某篇設定留言關鍵字自動回覆。
             </p>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={sync} disabled={syncing}>
@@ -196,7 +193,6 @@ export function MediaPage() {
                   <span>
                     {a.name}{' '}
                     <span className="badge badge-neutral">
-                      {a.platform === 'facebook' ? 'FB · ' : ''}
                       {a.applyScope === 'next_post' ? '待綁定：下一篇新貼文' : '全帳號預設'}
                     </span>{' '}
                     <StatusTag status={a.status} />
@@ -227,11 +223,6 @@ export function MediaPage() {
               <div className="media-card" key={m.id}>
                 <div style={{ position: 'relative' }}>
                   <Thumb url={m.thumbnailUrl} type={m.mediaType} />
-                  {m.platform === 'facebook' ? (
-                    <span className="media-type-tag" style={{ left: 8, right: 'auto' }}>
-                      FB
-                    </span>
-                  ) : null}
                   {m.automationStatus !== 'none' ? (
                     <span className="media-status-tag">
                       <StatusTag status={m.automationStatus} />
@@ -245,7 +236,7 @@ export function MediaPage() {
                   <div className="media-card-footer">
                     {m.permalink ? (
                       <a className="media-permalink" href={m.permalink} target="_blank" rel="noreferrer">
-                        {m.platform === 'facebook' ? '在 FB 開啟 ↗' : '在 IG 開啟 ↗'}
+                        在 IG 開啟 ↗
                       </a>
                     ) : (
                       <span />

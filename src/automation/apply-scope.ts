@@ -40,13 +40,7 @@ export async function bindNextPostAutomation(
   const pending = await db
     .select()
     .from(automations)
-    .where(
-      and(
-        eq(automations.applyScope, 'next_post'),
-        isNull(automations.instagramMediaId),
-        eq(automations.platform, media.platform),
-      ),
-    )
+    .where(and(eq(automations.applyScope, 'next_post'), isNull(automations.instagramMediaId)))
     .orderBy(asc(automations.createdAt));
 
   for (const candidate of pending) {
@@ -91,13 +85,7 @@ export async function resolveAutomationForMedia(
   const fallback = await db
     .select()
     .from(automations)
-    .where(
-      and(
-        eq(automations.applyScope, 'account_default'),
-        eq(automations.status, 'active'),
-        eq(automations.platform, media.platform),
-      ),
-    )
+    .where(and(eq(automations.applyScope, 'account_default'), eq(automations.status, 'active')))
     .limit(1);
   return fallback[0] ?? null;
 }

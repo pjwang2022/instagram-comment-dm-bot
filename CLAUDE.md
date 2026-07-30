@@ -9,7 +9,7 @@
 1. 安裝依賴：`npm ci` 與 `npm ci --prefix admin`。
 2. 不需手動建立或命名任何 Cloudflare 資源：`npm run deploy`（`scripts/deploy.mjs`）會自動建立缺少的 Queue 與 D1——wrangler 自動開通會在首次部署時建立資料庫並把 `database_id` 寫回 `wrangler.jsonc`。若會對本 repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，避免寫回的個人資源 ID 被提交。
 3. `cp .dev.vars.example .dev.vars`，填入本機開發用機密（同樣不進版控）。
-4. 正式環境機密逐一 `wrangler secret put <NAME>`：`INSTAGRAM_APP_SECRET`、`WEBHOOK_VERIFY_TOKEN`、`INSTAGRAM_ACCOUNT_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`；選配 `FACEBOOK_PAGE_ACCESS_TOKEN`（啟用 FB 粉專留言自動化，webhook 路徑 `/api/webhooks/meta/facebook`、訂閱 Page 物件的 feed 欄位）。設定後約 30 秒才生效，勿立即以舊回應誤判。
+4. 正式環境機密逐一 `wrangler secret put <NAME>`：`INSTAGRAM_APP_SECRET`、`WEBHOOK_VERIFY_TOKEN`、`INSTAGRAM_ACCOUNT_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`。設定後約 30 秒才生效，勿立即以舊回應誤判。
 5. 套用資料庫 migrations：`wrangler d1 migrations apply ig-comment-dm-db --local`（本機）；正式環境改用 `npm run deploy`（一次完成 admin 建置、`--remote` migrations 與部署）。
 6. 建立管理者帳號：部署後開 `/admin`——資料庫沒有任何管理者時，登入頁顯示一次性的首次啟動設定表單（`POST /api/admin/auth/setup`，僅在 `admin_users` 為空時允許）。CLI 備援：`npm run create-admin`（產出 `admin-insert.sql`）→ `npx wrangler d1 execute DB --local --file=admin-insert.sql`（正式改 `--remote`）→ 套用後刪檔。務必用 `--file`、不要貼進 `--command`（密碼雜湊含 `$`，會被 shell 展開打爛）。
 7. 驗證環境：`npm run check-meta`（Meta token 健康檢查）→ `npm run test` → `npm run dev`。

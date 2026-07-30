@@ -29,7 +29,6 @@
 ## 功能
 
 - **每篇貼文獨立的關鍵字自動化** —— 支援 `contains_any`／`exact_any`／`all_comments` 比對模式，含文字正規化與排除條件。
-- **也支援 Facebook 粉專（選配）** —— 設定 Page Access Token 後，同一套關鍵字自動化可用於粉專貼文留言（公開回覆＋Messenger 私訊）。
 - **支援排程貼文** —— Instagram API 看不到未發布的貼文，因此可事先建立「待命自動化」（貼文一上線即自動綁定，連第一則留言都不漏），或設定套用到所有新貼文的全帳號預設。
 - **每位留言者一次性公開回覆＋一則私訊**，公開回覆支援多變體輪替，私訊可選配可點擊的連結按鈕。
 - **冪等設計** —— webhook 事件與自動化執行都有去重機制，Meta 重送 webhook 不會造成重複回覆。
@@ -89,8 +88,6 @@ npm run deploy
    - Verify token：與 `WEBHOOK_VERIFY_TOKEN` secret 相同的值
    - 訂閱 **`comments`** 欄位。
 4. App 審核（App Review）需要公開的隱私政策網址——本專案內建於 `https://<你的網域>/privacy`（頁面顯示的聯絡信箱即你的管理者帳號 Email）。
-
-**選配——Facebook 粉專**：在同一個 Meta App 加入 **Messenger** 產品，連結你的粉專並產生 **Page Access Token**（權限含 `pages_messaging`、`pages_manage_engagement`），存為 `FACEBOOK_PAGE_ACCESS_TOKEN` secret；接著設定 Page webhook：回呼網址 `https://<你的網域>/api/webhooks/meta/facebook`、驗證權杖沿用同一個、訂閱 **`feed`** 欄位。下次同步後粉專貼文就會出現在後台，自動化用法完全相同。
 
 ### 3. 建立管理者帳號
 
