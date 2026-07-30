@@ -67,22 +67,14 @@ git clone https://github.com/pjwang2022/instagram-comment-dm-bot.git
 cd instagram-comment-dm-bot
 npm ci && npm ci --prefix admin
 
-# 建立 Cloudflare 資源
-npx wrangler d1 create ig-comment-dm-db      # 記下輸出的 database_id
-npx wrangler queues create ig-comment-events
-
-# 設定：編輯 wrangler.jsonc——只需要填一個值：
-#   → 把 <D1_DATABASE_ID> 換成上面指令印出的 database_id
-# 若你之後會貢獻程式碼回來，先讓個人部署值不會被提交：
-git update-index --skip-worktree wrangler.jsonc
-
 # 正式環境機密。每個 secret 設定後約 30 秒才生效。
 npx wrangler secret put META_APP_SECRET
 npx wrangler secret put META_VERIFY_TOKEN        # 自訂隨機字串；步驟 2 會再用到
 npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32 bytes 以上隨機值
 
-# 部署（建置管理後台、套用 D1 migrations、部署 Worker 一次完成）
+# 部署——首次執行會自動建立 D1 資料庫與 Queue、建置管理後台、
+# 部署 Worker 並套用 migrations。不需要命名任何資源、不需要改任何設定檔。
 npm run deploy
 ```
 
@@ -138,7 +130,7 @@ npm run lint && npm run typecheck
 
 ## 安全性說明
 
-所有機密只存在 Cloudflare Secrets（正式環境）或 `.dev.vars`（本機，已被 gitignore）——永不寫入被 git 追蹤的檔案。`wrangler.jsonc` 以 placeholder 值提交進版控（Deploy 按鈕需要它）；若你會貢獻程式碼回來，請先執行 `git update-index --skip-worktree wrangler.jsonc`，確保個人部署值永不進 commit。
+所有機密只存在 Cloudflare Secrets（正式環境）或 `.dev.vars`（本機，已被 gitignore）——永不寫入被 git 追蹤的檔案。`wrangler.jsonc` 只以預設值提交進版控；首次部署時 wrangler 會把自動建立的 `database_id` 寫回檔內。若你會貢獻程式碼回來，請先執行 `git update-index --skip-worktree wrangler.jsonc`，確保寫回的個人資源 ID 永不進 commit。
 
 ## License
 

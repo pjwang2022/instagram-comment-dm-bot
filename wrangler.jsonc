@@ -1,9 +1,10 @@
-// 本檔以預設值提交進版控——「Deploy to Cloudflare」按鈕需要它來自動開通資源
-//（D1、Queues），部署流程會在你複製出去的 repo 裡改寫資源 ID。
-// 一鍵部署的使用者不需要修改本檔的任何內容。
-// 手動部署者：只需把 <D1_DATABASE_ID> 換成 `wrangler d1 create` 印出的 ID。若你會
-// 對本 repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，
-// 避免把個人部署值提交上去。
+// 本檔以預設值提交進版控，任何人都不需要修改它：
+// - 一鍵部署（Deploy to Cloudflare 按鈕）：按鈕流程自動開通 D1/Queue 並改寫資源 ID。
+// - 手動部署：`npm run deploy` 自動建立缺少的 Queue 與 D1——wrangler（≥4.45）的
+//   自動開通會在首次部署時建立資料庫，並把 database_id 寫回本檔（只存在你的
+//   本機或你自己的 repo 副本）。
+// 若你會對本 repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，
+// 避免把寫回的個人資源 ID 提交上去。
 // 機密（META_APP_SECRET 等）不放這裡：本機開發用 .dev.vars（見 .dev.vars.example），
 // 正式環境用 `wrangler secret put <NAME>` 個別設定。
 {
@@ -28,11 +29,11 @@
     "APP_ENV": "production",
     "LOG_LEVEL": "info"
   },
+  // 刻意不寫 database_id：wrangler 自動開通會在首次部署時建立資料庫並把 ID 寫回。
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "ig-comment-dm-db",
-      "database_id": "<D1_DATABASE_ID>",
       "migrations_dir": "drizzle/migrations"
     }
   ],

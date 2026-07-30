@@ -67,22 +67,15 @@ git clone https://github.com/pjwang2022/instagram-comment-dm-bot.git
 cd instagram-comment-dm-bot
 npm ci && npm ci --prefix admin
 
-# Create Cloudflare resources
-npx wrangler d1 create ig-comment-dm-db      # note the database_id it prints
-npx wrangler queues create ig-comment-events
-
-# Configure: edit wrangler.jsonc — only one value to fill:
-#   → replace <D1_DATABASE_ID> with the database_id printed above
-# If you plan to contribute back, keep your personal values out of commits:
-git update-index --skip-worktree wrangler.jsonc
-
 # Secrets (production). Each takes ~30s to propagate after `put`.
 npx wrangler secret put META_APP_SECRET
 npx wrangler secret put META_VERIFY_TOKEN        # any random string; reused in step 2
 npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32+ random bytes
 
-# Deploy (builds the admin SPA, applies D1 migrations, deploys the Worker)
+# Deploy — the first run auto-creates the D1 database and the Queue,
+# builds the admin SPA, deploys the Worker, and applies migrations.
+# No resource naming, no config editing.
 npm run deploy
 ```
 
@@ -138,7 +131,7 @@ Note: `wrangler dev` does not enforce every production Workers limit (e.g. the 1
 
 ## Security Notes
 
-All secrets live in Cloudflare Secrets (production) or `.dev.vars` (local, gitignored) — never in tracked files. `wrangler.jsonc` is tracked with placeholder values only (the Deploy button needs it); if you contribute back, use `git update-index --skip-worktree wrangler.jsonc` so your personal deployment values never end up in a commit.
+All secrets live in Cloudflare Secrets (production) or `.dev.vars` (local, gitignored) — never in tracked files. `wrangler.jsonc` is tracked with defaults only; on your first deploy, wrangler writes your provisioned `database_id` back into it. If you contribute back, run `git update-index --skip-worktree wrangler.jsonc` first so that written-back ID never ends up in a commit.
 
 ## License
 

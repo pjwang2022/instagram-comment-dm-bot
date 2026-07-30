@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "build": "npm run build --prefix admin && wrangler deploy --dry-run",
-    "deploy": "npm run build --prefix admin && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "deploy": "node scripts/deploy.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts/tsconfig.json && npm run typecheck --prefix admin",
     "create-admin": "tsx scripts/create-admin.ts",
