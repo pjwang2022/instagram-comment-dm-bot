@@ -114,9 +114,7 @@ export function AccountPage() {
           </form>
         </div>
         <p className="page-subtitle" style={{ marginTop: 'var(--space-4)' }}>
-          忘記密碼？可在終端機執行
-          <code>{'npx wrangler d1 execute DB --remote --command "DELETE FROM admin_users"'}</code>
-          清除帳號後，重新打開 /admin 以首次設定表單重建（需要你的 Cloudflare 帳號權限）。
+          本系統不提供忘記密碼重設，請妥善保管新密碼。
         </p>
       </div>
     </>
