@@ -110,7 +110,7 @@ Note: `wrangler dev` does not enforce every production Workers limit (e.g. the 1
 ## Documentation
 
 - [`spec.md`](spec.md) — full technical spec: data model, APIs, matching rules, retry/circuit-breaker semantics (Traditional Chinese).
-- [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) — instructions for AI coding agents. This project is developed with [Monstrare](https://github.com/pjwang2022/Monstrare), a gated AI workflow (specs → task cards → verification → review); its process files live under `ai/`.
+- [`CLAUDE.md`](CLAUDE.md) — setup steps and project rules for AI coding agents (Claude Code reads this automatically).
 
 ## Security Notes
 

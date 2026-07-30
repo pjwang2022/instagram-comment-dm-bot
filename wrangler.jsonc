@@ -69,7 +69,7 @@
   "triggers": {
     // 台北時間 04:00（貼文/Reels 每日同步）與 08:00（Token 到期檢查）換算 UTC。
     // 台灣不使用日光節約時間，固定 UTC+8：04:00 Asia/Taipei = 20:00 UTC（前一天）；08:00 Asia/Taipei = 00:00 UTC。
-    // 資料清理排程本階段不做（見 ai/context/decisions.md），故不在此宣告第三個 cron。
+    // 資料清理排程本階段不做，故不在此宣告第三個 cron。
     "crons": [
       "0 20 * * *",
       "0 0 * * *"

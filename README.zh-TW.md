@@ -110,7 +110,7 @@ npm run lint && npm run typecheck
 ## 文件
 
 - [`spec.md`](spec.md) —— 完整技術規格：資料模型、API、比對規則、重試與熔斷語意。
-- [`CLAUDE.md`](CLAUDE.md)／[`AGENTS.md`](AGENTS.md) —— 給 AI coding agent 的指令。本專案使用 [Monstrare](https://github.com/pjwang2022/Monstrare) 開發——一套有關卡的 AI 工作流程（規格 → 任務卡 → 驗證 → 審查），流程檔案位於 `ai/`。
+- [`CLAUDE.md`](CLAUDE.md) —— 給 AI coding agent 的初始化步驟與專案規則（Claude Code 會自動讀取）。
 
 ## 安全性說明
 

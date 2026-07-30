@@ -1,10 +1,8 @@
-@AGENTS.md
-
 # Claude Code 指令
 
-本檔案為 Claude Code 專屬的路由層，補充上方 `AGENTS.md` 所定義的共用作業規則與流程（該檔案也供 Codex 等其他 AI 工具讀取，為單一事實來源）。詳細規則位於 `ai/process/`。
-
-- 保持 `CLAUDE.md` 簡短。可重複使用的工作流程放在 `.claude/skills/`。
+本專案為 Instagram Comment DM Bot：留言命中關鍵字即自動公開回覆並發送私訊，
+跑在 Cloudflare Workers（Hono + D1/Drizzle + Queues + Cron），管理後台為 React SPA
+（`admin/`，由 ASSETS binding 供應）。完整技術規格見 `spec.md`，安裝與部署見 `README.md`。
 
 ## Clone 後初始化（新環境必做）
 
@@ -16,26 +14,13 @@
 6. 建立管理者帳號：`npm run create-admin`（互動式，產出 `admin-insert.sql`），再依畫面指示用 `npx wrangler d1 execute DB --local --file=admin-insert.sql`（正式改 `--remote`）套用，套用後刪除該檔。務必用 `--file`、不要貼進 `--command`（密碼雜湊含 `$`，會被 shell 展開打爛）。
 7. 驗證環境：`npm run check-meta`（Meta token 健康檢查）→ `npm run test` → `npm run dev`。
 
-規則：機密一律走 `.dev.vars`（本機）或 `wrangler secret put`（正式），永不寫入任何被 git 追蹤的檔案。`wrangler.jsonc` 在版控中只允許 placeholder 值——本機真實部署值以 `git update-index --skip-worktree wrangler.jsonc` 保護（意味著 git 不會回報此檔的變更；要提交結構性修改前，先 `git update-index --no-skip-worktree wrangler.jsonc`，確認 diff 只含 placeholder 後再提交，完成後重新設回 skip-worktree）。
+## 機密與設定規則
 
-## Skill 路由
+- 機密一律走 `.dev.vars`（本機）或 `wrangler secret put`（正式），永不寫入任何被 git 追蹤的檔案、不傳到前端、不寫進 log。
+- `wrangler.jsonc` 在版控中只允許 placeholder 值——本機真實部署值以 `git update-index --skip-worktree wrangler.jsonc` 保護（意味著 git 不會回報此檔的變更；要提交結構性修改前，先 `git update-index --no-skip-worktree wrangler.jsonc`，確認 diff 只含 placeholder 後再提交，完成後重新設回 skip-worktree）。
 
-- 全新專案的 Epic/User Story/Task 拆解：`project-kickoff`
-- 程式碼庫搜尋：`project-search`
-- 需求釐清：`spec-interrogation`
-- UI 替代方案與畫面狀態：`ui-mockup-gate`
-- UI 視覺品質與設計工藝：`design-craft`
-- 技術規劃與任務卡：`implementation-plan`
-- 安全性與可維護性審查：`security-maintainability-review`
-- 測試與驗證證據：`test-verification`
+## 開發注意事項
 
-## 子代理路由
-
-- 產品面模糊性：`product-planner`
-- UI 與互動品質：`ux-reviewer`
-- 架構或跨切面變更：`architect`
-- 安全性敏感變更：`security-reviewer`
-- 測試策略與回歸風險：`test-engineer`
-
-不得將代理（agent）輸出視為核准。人工核准仍是
-`ai/process/review-gates.md` 中所定義各關卡（gate）的必要條件。
+- Workers 正式 runtime 的限制在 `wrangler dev` 測不出來（例：PBKDF2 單次迭代上限 100,000、禁止執行期 WASM 編譯、全域 fetch 需綁定 this）。認證與加密相關變更務必部署後實測。
+- 提供驗證證據：指令、輸出結果、UI 螢幕截圖，以及已知殘留風險。
+- 審查重點：功能性錯誤、安全與隱私風險、auth／權限／密鑰／網路邊界、資料驗證與錯誤處理、缺失的測試。

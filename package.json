@@ -1,11 +1,10 @@
 {
   "name": "instagram-comment-dm-bot",
   "private": true,
-  "description": "Instagram 留言關鍵字自動私訊系統（IG Comment DM Bot），採 Monstrare 治理工作流開發。",
+  "description": "Instagram 留言關鍵字自動私訊系統：留言命中關鍵字即自動公開回覆並發送 DM，跑在 Cloudflare Workers。",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "kanban": "node tools/kanban/server.mjs",
     "dev": "wrangler dev",
     "build": "npm run build --prefix admin && wrangler deploy --dry-run",
     "deploy": "npm run build --prefix admin && wrangler d1 migrations apply DB --remote && wrangler deploy",

@@ -12,7 +12,6 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/.wrangler/**',
       'drizzle/migrations/**',
-      'tools/kanban/cards/**',
     ],
   },
   js.configs.recommended,
