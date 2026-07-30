@@ -90,9 +90,9 @@ export const automationKeywords = sqliteTable(
   'automation_keywords',
   {
     id: text('id').primaryKey(),
-    automationId: text('automation_id')
-      .notNull()
-      .references(() => automations.id),
+    // FK→automations 刻意不宣告：D1 無法在有子表參照時重建父表（見 migration 0004）。
+    // app 無刪除自動化路徑，完整性由應用層維護。
+    automationId: text('automation_id').notNull(),
     keyword: text('keyword').notNull(),
     normalizedKeyword: text('normalized_keyword').notNull(),
     createdAt: text('created_at').notNull().$defaultFn(nowIso),
@@ -108,9 +108,7 @@ export const automationKeywords = sqliteTable(
 
 export const publicReplyVariants = sqliteTable('public_reply_variants', {
   id: text('id').primaryKey(),
-  automationId: text('automation_id')
-    .notNull()
-    .references(() => automations.id),
+  automationId: text('automation_id').notNull(),
   message: text('message').notNull(),
   enabled: integer('enabled').notNull().default(1),
   createdAt: text('created_at').notNull().$defaultFn(nowIso),
@@ -144,9 +142,7 @@ export const automationRuns = sqliteTable(
   'automation_runs',
   {
     id: text('id').primaryKey(),
-    automationId: text('automation_id')
-      .notNull()
-      .references(() => automations.id),
+    automationId: text('automation_id').notNull(),
     webhookEventId: text('webhook_event_id').references(() => webhookEvents.id),
     instagramCommentId: text('instagram_comment_id').notNull(),
     instagramMediaId: text('instagram_media_id').notNull(),
@@ -180,9 +176,7 @@ export const apiAttempts = sqliteTable(
   'api_attempts',
   {
     id: text('id').primaryKey(),
-    automationRunId: text('automation_run_id')
-      .notNull()
-      .references(() => automationRuns.id),
+    automationRunId: text('automation_run_id').notNull(),
     actionType: text('action_type').notNull(),
     attemptNumber: integer('attempt_number').notNull(),
     httpStatus: integer('http_status'),
