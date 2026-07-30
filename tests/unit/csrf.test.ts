@@ -33,7 +33,7 @@ describe('CSRF origin check', () => {
     expect(isSameOriginRequest('POST', null, null, APP)).toBe(false);
   });
 
-  it('fails closed when APP_BASE_URL is misconfigured', () => {
+  it('fails closed when the request URL is malformed', () => {
     expect(isSameOriginRequest('POST', 'https://igbot.example.com', null, 'not-a-url')).toBe(false);
   });
 

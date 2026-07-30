@@ -21,7 +21,6 @@ export type AppBindings = {
   META_BASE_URL?: string;
   INSTAGRAM_ACCOUNT_ID: string;
   APP_ENV: string;
-  APP_BASE_URL: string;
   ADMIN_EMAIL: string;
   LOG_LEVEL: string;
 };

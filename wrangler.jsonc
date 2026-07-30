@@ -30,11 +30,6 @@
     //   b. 本機執行 npm run check-meta（.dev.vars 填好 token 即可），會自動印出帳號 ID。
     "INSTAGRAM_ACCOUNT_ID": "<TODO:填入 Instagram 帳號的數字 ID>",
     "APP_ENV": "production",
-    // 這個 Worker 對外的完整網址（含 https://、結尾不要斜線）。
-    // 沒有自訂網域就填部署後 Cloudflare 給的 workers.dev 網址，
-    // 例如 https://ig-comment-dm-bot.<你的子網域>.workers.dev（可在 Workers Dashboard 看到）。
-    // 注意：後台登入的 CSRF 防護會精確比對這個值——填錯或含多餘斜線會導致後台無法登入。
-    "APP_BASE_URL": "<TODO:填入 Worker 對外網址，例如 https://xxx.workers.dev>",
     // 顯示在 /privacy 隱私政策頁上的聯絡信箱（Meta App 審核要求提供）。
     // 與後台登入帳號無關——登入用的 Email 是在 /admin 首次設定表單建立的。
     "ADMIN_EMAIL": "<TODO:填入公開的聯絡信箱>",

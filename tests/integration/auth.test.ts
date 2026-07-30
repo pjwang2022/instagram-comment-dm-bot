@@ -12,7 +12,6 @@ const alwaysAllowLimiter = { limit: async () => ({ success: true }) };
 
 const BASE_ENV = {
   ADMIN_SESSION_SECRET: 'integration-test-secret',
-  APP_BASE_URL: 'https://igbot.example.com',
   ADMIN_RATE_LIMITER: alwaysAllowLimiter,
 } as const;
 

@@ -24,7 +24,6 @@ beforeEach(async () => {
   env = {
     DB: createD1Shim(sqlite),
     ADMIN_SESSION_SECRET: SECRET,
-    APP_BASE_URL: 'https://igbot.example.com',
     ADMIN_RATE_LIMITER: { limit: async () => ({ success: true }) },
   };
   cookie = `${SESSION_COOKIE_NAME}=${await createSessionCookie(SECRET, 'admin-1', 3600)}`;

@@ -1,5 +1,9 @@
 // CSRF 防護：非安全方法（POST/PUT/PATCH/DELETE）驗證 Origin／Referer。
 //
+// 比對基準取自「請求本身的網址」（c.req.url）而非設定值：Cloudflare 依 hostname
+// 路由請求，能到達本 Worker 的請求其網址必為本 Worker 的合法網域，因此
+// workers.dev 與自訂網域都自動支援，無需 APP_BASE_URL 之類的設定。
+//
 // 安全性要點（依安全性審查）：
 // - 精確比對 origin（用 URL().origin，非 startsWith），避免 evil.com 子網域繞過。
 // - Origin 為字面字串 "null" 視為不可信。
@@ -23,12 +27,12 @@ export function isSameOriginRequest(
   method: string,
   originHeader: string | undefined | null,
   refererHeader: string | undefined | null,
-  appBaseUrl: string,
+  requestUrl: string,
 ): boolean {
   if (SAFE_METHODS.has(method.toUpperCase())) return true;
 
-  const expected = toTrustedOrigin(appBaseUrl);
-  if (!expected) return false; // APP_BASE_URL 設定錯誤時 fail-closed
+  const expected = toTrustedOrigin(requestUrl);
+  if (!expected) return false; // 請求網址異常時 fail-closed
 
   const candidate = toTrustedOrigin(originHeader) ?? toTrustedOrigin(refererHeader);
   if (!candidate) return false; // 兩者皆缺失／不可信時 fail-closed
@@ -42,7 +46,7 @@ export function csrfMiddleware() {
       c.req.method,
       c.req.header('Origin'),
       c.req.header('Referer'),
-      c.env.APP_BASE_URL,
+      c.req.url,
     );
     if (!ok) {
       return c.json({ error: 'CSRF 檢查失敗' }, 403);
