@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1785234035005,
+      "when": 1785403655321,
       "tag": "0000_organic_monster_badoon",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1785387467268,
-      "tag": "0001_automation_apply_scope",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1785395708175,
-      "tag": "0002_platform_dimension",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1785399609798,
-      "tag": "0003_remove_platform",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1785403223223,
-      "tag": "0004_nullable_media_drop_child_fks",
       "breakpoints": true
     }
   ]

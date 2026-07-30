@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "31b5472b-f8fb-4f17-9f58-f81212e6ca3a",
+  "id": "8fa4cb2d-8969-4db2-8e03-d564dae7b5a4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "admin_users": {
@@ -161,21 +161,7 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "api_attempts_automation_run_id_automation_runs_id_fk": {
-          "name": "api_attempts_automation_run_id_automation_runs_id_fk",
-          "tableFrom": "api_attempts",
-          "tableTo": "automation_runs",
-          "columnsFrom": [
-            "automation_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -302,21 +288,7 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "automation_keywords_automation_id_automations_id_fk": {
-          "name": "automation_keywords_automation_id_automations_id_fk",
-          "tableFrom": "automation_keywords",
-          "tableTo": "automations",
-          "columnsFrom": [
-            "automation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -491,19 +463,6 @@
         }
       },
       "foreignKeys": {
-        "automation_runs_automation_id_automations_id_fk": {
-          "name": "automation_runs_automation_id_automations_id_fk",
-          "tableFrom": "automation_runs",
-          "tableTo": "automations",
-          "columnsFrom": [
-            "automation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "automation_runs_webhook_event_id_webhook_events_id_fk": {
           "name": "automation_runs_webhook_event_id_webhook_events_id_fk",
           "tableFrom": "automation_runs",
@@ -536,8 +495,16 @@
           "name": "instagram_media_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
+        },
+        "apply_scope": {
+          "name": "apply_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'media'"
         },
         "name": {
           "name": "name",
@@ -987,21 +954,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "public_reply_variants_automation_id_automations_id_fk": {
-          "name": "public_reply_variants_automation_id_automations_id_fk",
-          "tableFrom": "public_reply_variants",
-          "tableTo": "automations",
-          "columnsFrom": [
-            "automation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

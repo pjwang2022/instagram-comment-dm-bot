@@ -20,8 +20,7 @@ CREATE TABLE `api_attempts` (
 	`request_payload_redacted` text,
 	`response_payload_redacted` text,
 	`started_at` text NOT NULL,
-	`completed_at` text,
-	FOREIGN KEY (`automation_run_id`) REFERENCES `automation_runs`(`id`) ON UPDATE no action ON DELETE no action
+	`completed_at` text
 );
 --> statement-breakpoint
 CREATE INDEX `idx_attempts_run` ON `api_attempts` (`automation_run_id`);--> statement-breakpoint
@@ -41,8 +40,7 @@ CREATE TABLE `automation_keywords` (
 	`automation_id` text NOT NULL,
 	`keyword` text NOT NULL,
 	`normalized_keyword` text NOT NULL,
-	`created_at` text NOT NULL,
-	FOREIGN KEY (`automation_id`) REFERENCES `automations`(`id`) ON UPDATE no action ON DELETE no action
+	`created_at` text NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `automation_keywords_automation_id_normalized_keyword_unique` ON `automation_keywords` (`automation_id`,`normalized_keyword`);--> statement-breakpoint
@@ -67,7 +65,6 @@ CREATE TABLE `automation_runs` (
 	`completed_at` text,
 	`created_at` text NOT NULL,
 	`updated_at` text NOT NULL,
-	FOREIGN KEY (`automation_id`) REFERENCES `automations`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`webhook_event_id`) REFERENCES `webhook_events`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -77,7 +74,8 @@ CREATE INDEX `idx_runs_created` ON `automation_runs` (`created_at`);--> statemen
 CREATE INDEX `idx_runs_media` ON `automation_runs` (`instagram_media_id`);--> statement-breakpoint
 CREATE TABLE `automations` (
 	`id` text PRIMARY KEY NOT NULL,
-	`instagram_media_id` text NOT NULL,
+	`instagram_media_id` text,
+	`apply_scope` text DEFAULT 'media' NOT NULL,
 	`name` text NOT NULL,
 	`status` text DEFAULT 'draft' NOT NULL,
 	`match_type` text DEFAULT 'contains_any' NOT NULL,
@@ -143,8 +141,7 @@ CREATE TABLE `public_reply_variants` (
 	`message` text NOT NULL,
 	`enabled` integer DEFAULT 1 NOT NULL,
 	`created_at` text NOT NULL,
-	`updated_at` text NOT NULL,
-	FOREIGN KEY (`automation_id`) REFERENCES `automations`(`id`) ON UPDATE no action ON DELETE no action
+	`updated_at` text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `system_settings` (
