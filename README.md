@@ -23,7 +23,7 @@ After the first deploy, finish up in your own repo copy:
 
 - Edit `wrangler.jsonc` → replace the `<TODO:...>` values (`INSTAGRAM_ACCOUNT_ID`, `APP_BASE_URL`, `ADMIN_EMAIL`) and push — it redeploys automatically.
 - Complete the [Meta side setup](#2-meta-side) (webhook subscription + access token).
-- Create your [admin account](#3-create-the-admin-account).
+- Open `/admin` and [create your admin account](#3-create-the-admin-account) on the first-run setup page — do this right after deploying.
 
 Prefer doing everything by hand? Follow the full [Quick Start](#quick-start) below.
 
@@ -100,7 +100,11 @@ npm run deploy
 
 ### 3. Create the admin account
 
-The dashboard has no self-signup — you create the single admin account from your machine. If you deployed via the button, first clone **your repo copy**, then run `npm ci` and `npx wrangler login`.
+Open `https://<your-domain>/admin` **right after the first deploy**. While no admin account exists yet, the login page shows a one-time **first-run setup form**: enter an email and a password (12+ characters) and you are logged in immediately. The form permanently disappears once the account exists — no terminal needed.
+
+> Do this promptly: until the account is created, anyone who discovers your freshly deployed URL could claim it first.
+
+CLI fallback (e.g. if you prefer not to use the web form):
 
 ```bash
 # Interactive: asks for email + password, writes admin-insert.sql
@@ -108,8 +112,6 @@ The dashboard has no self-signup — you create the single admin account from yo
 npm run create-admin
 npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
 ```
-
-Then log in at `https://<your-domain>/admin`.
 
 ### 4. Verify
 

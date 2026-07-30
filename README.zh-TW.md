@@ -23,7 +23,7 @@
 
 - 編輯 `wrangler.jsonc` → 把 `<TODO:...>` 換成實際值（`INSTAGRAM_ACCOUNT_ID`、`APP_BASE_URL`、`ADMIN_EMAIL`）後 push，會自動重新部署。
 - 完成 [Meta 端設定](#2-meta-端)（webhook 訂閱＋access token）。
-- 建立[管理者帳號](#3-建立管理者帳號)。
+- 打開 `/admin`，在首次啟動設定頁[建立管理者帳號](#3-建立管理者帳號)——部署完請盡快做這步。
 
 想全程手動操作？請看下方完整的 [Quick Start](#quick-start)。
 
@@ -100,7 +100,11 @@ npm run deploy
 
 ### 3. 建立管理者帳號
 
-後台沒有開放註冊——唯一的管理者帳號要從你的電腦建立。若你是用按鈕部署的，請先 clone **你自己的 repo 副本**，再執行 `npm ci` 與 `npx wrangler login`。
+**首次部署完成後立刻**打開 `https://<你的網域>/admin`。在還沒有任何管理者帳號時，登入頁會顯示一次性的**首次啟動設定表單**：輸入 Email 與密碼（至少 12 字元）即建立唯一的管理者帳號並自動登入。帳號建立後這個表單就永久消失——全程不需要 terminal。
+
+> 請盡快完成這步：在帳號建立之前，任何發現你剛部署網址的人都有可能搶先註冊。
+
+CLI 備援（例如不想用網頁表單時）：
 
 ```bash
 # 互動式：輸入 Email 與密碼，產出 admin-insert.sql
@@ -108,8 +112,6 @@ npm run deploy
 npm run create-admin
 npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
 ```
-
-完成後到 `https://<你的網域>/admin` 登入。
 
 ### 4. 驗證
 

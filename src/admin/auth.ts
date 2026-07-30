@@ -1,6 +1,6 @@
 // 登入／登出 Admin API 與 requireAdminAuth middleware。
 // 組裝 password（TASK-007）、session/csrf/rate-limit（TASK-008）成完整登入流程。
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
@@ -8,7 +8,7 @@ import type { AppBindings } from '../app';
 import { createDb } from '../database/client';
 import { adminUsers, auditLogs } from '../database/schema';
 import { csrfMiddleware } from '../security/csrf';
-import { getDummyHash, verifyPassword } from '../security/password';
+import { getDummyHash, hashPassword, verifyPassword } from '../security/password';
 import { adminApiRateLimitMiddleware, loginRateLimitMiddleware } from '../security/rate-limit';
 import {
   SESSION_COOKIE_NAME,
@@ -59,8 +59,74 @@ export function requireAdminAuth() {
   });
 }
 
+// 與 scripts/create-admin.ts 相同的密碼下限。
+const MIN_PASSWORD_LENGTH = 12;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function createAuthRoutes() {
   const auth = new Hono<AuthEnv>();
+
+  // GET /api/admin/auth/setup-status
+  // 公開端點：登入頁以此決定顯示「登入」或「首次設定」表單。只回布林，不洩漏其他資訊。
+  auth.get('/setup-status', async (c) => {
+    const db = createDb(c.env.DB);
+    const rows = await db.select({ id: adminUsers.id }).from(adminUsers).limit(1);
+    return c.json({ needsSetup: rows.length === 0 });
+  });
+
+  // POST /api/admin/auth/setup
+  // 首次啟動設定：僅在 admin_users 為空時允許建立第一個（唯一的）管理者帳號，之後永久 403。
+  // 讓一鍵部署的使用者不需開 terminal 就能完成後台設定；CLI 備援見 scripts/create-admin.ts。
+  // 掛載順序比照 login：CSRF（Origin 驗證）→ 登入頻率限制。
+  auth.post('/setup', csrfMiddleware(), loginRateLimitMiddleware(), async (c) => {
+    const ip = c.req.header('CF-Connecting-IP') ?? null;
+
+    let body: { email?: unknown; password?: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: '請求格式錯誤' }, 400);
+    }
+    const email = typeof body.email === 'string' ? body.email.trim() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!EMAIL_PATTERN.test(email)) {
+      return c.json({ error: 'Email 格式不正確' }, 400);
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return c.json({ error: `密碼長度至少需要 ${MIN_PASSWORD_LENGTH} 個字元` }, 400);
+    }
+
+    const db = createDb(c.env.DB);
+    const id = crypto.randomUUID();
+    const passwordHash = await hashPassword(password);
+    const now = new Date().toISOString();
+
+    // 原子性防搶註：單一 INSERT ... WHERE NOT EXISTS，併發請求只會有一個寫入成功。
+    await db.run(sql`
+      INSERT INTO admin_users (id, email, password_hash, created_at, updated_at)
+      SELECT ${id}, ${email}, ${passwordHash}, ${now}, ${now}
+      WHERE NOT EXISTS (SELECT 1 FROM admin_users)
+    `);
+    const inserted = await db.select().from(adminUsers).where(eq(adminUsers.id, id)).limit(1);
+    if (!inserted[0]) {
+      await writeAuditLog(c.env, {
+        adminUserId: null,
+        action: 'admin.setup.rejected',
+        ipAddress: ip,
+      });
+      return c.json({ error: '系統已完成初始設定' }, 403);
+    }
+
+    // 建立成功即發 Session（免再登入一次）。
+    const cookie = await createSessionCookie(c.env.ADMIN_SESSION_SECRET, id, SESSION_TTL_SECONDS);
+    c.header('Set-Cookie', serializeSessionCookie(cookie, SESSION_TTL_SECONDS));
+    await writeAuditLog(c.env, {
+      adminUserId: id,
+      action: 'admin.setup.success',
+      ipAddress: ip,
+    });
+    return c.json({ ok: true });
+  });
 
   // POST /api/admin/auth/login
   // CSRF（Origin 驗證）→ 登入頻率限制 → 帳密驗證。登入用專屬的 login 限流（每 IP 15 分鐘），
