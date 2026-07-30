@@ -1,5 +1,5 @@
 // 共用頁首：品牌 + 導覽（儀表板/貼文）+ 登出。
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router';
 import { apiPost } from '../api/client';
 
 export function AppHeader() {

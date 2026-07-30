@@ -9,7 +9,7 @@
 1. 安裝依賴：`npm ci` 與 `npm ci --prefix admin`。
 2. 直接編輯 `wrangler.jsonc`（版控中的內容是 placeholder；「Deploy to Cloudflare」按鈕依賴此檔存在）。以 `wrangler d1 create ig-comment-dm-db`、`wrangler queues create ig-comment-events` 建立 Cloudflare 資源後，回填 `database_id` 與各 `<TODO:...>` 欄位（`INSTAGRAM_ACCOUNT_ID`／`APP_BASE_URL`／`ADMIN_EMAIL`），並立即執行 `git update-index --skip-worktree wrangler.jsonc`，避免個人部署值被提交。
 3. `cp .dev.vars.example .dev.vars`，填入本機開發用機密（同樣不進版控）。
-4. 正式環境機密逐一 `wrangler secret put <NAME>`：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`、`TOKEN_ENCRYPTION_KEY`。設定後約 30 秒才生效，勿立即以舊回應誤判。
+4. 正式環境機密逐一 `wrangler secret put <NAME>`：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`。設定後約 30 秒才生效，勿立即以舊回應誤判。
 5. 套用資料庫 migrations：`wrangler d1 migrations apply ig-comment-dm-db --local`（本機）；正式環境改用 `npm run deploy`（一次完成 admin 建置、`--remote` migrations 與部署）。
 6. 建立管理者帳號：部署後開 `/admin`——資料庫沒有任何管理者時，登入頁顯示一次性的首次啟動設定表單（`POST /api/admin/auth/setup`，僅在 `admin_users` 為空時允許）。CLI 備援：`npm run create-admin`（產出 `admin-insert.sql`）→ `npx wrangler d1 execute DB --local --file=admin-insert.sql`（正式改 `--remote`）→ 套用後刪檔。務必用 `--file`、不要貼進 `--command`（密碼雜湊含 `$`，會被 shell 展開打爛）。
 7. 驗證環境：`npm run check-meta`（Meta token 健康檢查）→ `npm run test` → `npm run dev`。

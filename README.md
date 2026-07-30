@@ -16,7 +16,7 @@ Clicking the button will:
 
 1. **Copy this repo** into your own GitHub (or GitLab) account.
 2. **Provision the resources** in your Cloudflare account — the D1 database and the Queue (Queues requires the **Workers Paid** plan).
-3. **Prompt you for the five secrets** listed in [`.dev.vars.example`](.dev.vars.example) (`META_APP_SECRET`, `META_VERIFY_TOKEN`, `INSTAGRAM_ACCESS_TOKEN`, `ADMIN_SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`).
+3. **Prompt you for the four secrets** listed in [`.dev.vars.example`](.dev.vars.example) (`META_APP_SECRET`, `META_VERIFY_TOKEN`, `INSTAGRAM_ACCESS_TOKEN`, `ADMIN_SESSION_SECRET`).
 4. **Build & deploy**, and set up push-to-deploy: every push to your copy redeploys automatically.
 
 After the first deploy, finish up in your own repo copy:
@@ -82,7 +82,6 @@ npx wrangler secret put META_APP_SECRET
 npx wrangler secret put META_VERIFY_TOKEN        # any random string; reused in step 2
 npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32+ random bytes
-npx wrangler secret put TOKEN_ENCRYPTION_KEY     # 32+ random bytes
 
 # Deploy (builds the admin SPA, applies D1 migrations, deploys the Worker)
 npm run deploy

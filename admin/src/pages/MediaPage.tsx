@@ -1,6 +1,6 @@
 // 貼文管理頁：IG 風格縮圖網格，每篇可建立/編輯自動化。
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { AppHeader } from '../components/AppHeader';
 import { apiGet, apiPost, type ApiError } from '../api/client';
 

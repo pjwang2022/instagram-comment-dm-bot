@@ -16,6 +16,3 @@ INSTAGRAM_ACCESS_TOKEN=
 
 # 管理者 Session 簽章用的隨機字串（建議 32 bytes 以上的隨機值）。
 ADMIN_SESSION_SECRET=
-
-# 用於加密任何需要落地保存之機密欄位的金鑰（建議 32 bytes 以上的隨機值）。
-TOKEN_ENCRYPTION_KEY=

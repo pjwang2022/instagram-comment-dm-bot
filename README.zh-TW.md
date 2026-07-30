@@ -16,7 +16,7 @@
 
 1. **複製本 repo** 到你自己的 GitHub（或 GitLab）帳號。
 2. **自動開通資源**——在你的 Cloudflare 帳號建立 D1 資料庫與 Queue（Queues 需要 **Workers Paid** 方案）。
-3. **提示你填入五個 secrets**（清單見 [`.dev.vars.example`](.dev.vars.example)：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`、`TOKEN_ENCRYPTION_KEY`）。
+3. **提示你填入四個 secrets**（清單見 [`.dev.vars.example`](.dev.vars.example)：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`）。
 4. **建置並部署**，同時設好 push 即自動重新部署：之後改你那份 repo、push 就會自動上線。
 
 首次部署完成後，到你自己的 repo 收尾：
@@ -82,7 +82,6 @@ npx wrangler secret put META_APP_SECRET
 npx wrangler secret put META_VERIFY_TOKEN        # 自訂隨機字串；步驟 2 會再用到
 npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32 bytes 以上隨機值
-npx wrangler secret put TOKEN_ENCRYPTION_KEY     # 32 bytes 以上隨機值
 
 # 部署（建置管理後台、套用 D1 migrations、部署 Worker 一次完成）
 npm run deploy

@@ -17,7 +17,6 @@ export type AppBindings = {
   META_VERIFY_TOKEN: string;
   INSTAGRAM_ACCESS_TOKEN: string;
   ADMIN_SESSION_SECRET: string;
-  TOKEN_ENCRYPTION_KEY: string;
   META_GRAPH_API_VERSION: string;
   META_BASE_URL?: string;
   INSTAGRAM_ACCOUNT_ID: string;

@@ -251,7 +251,6 @@ Cloudflare Secrets
 * Meta Verify Token。
 * Instagram Access Token。
 * 管理者 Session Secret。
-* Token Encryption Key。
 
 不得將 Secret：
 
@@ -1389,10 +1388,9 @@ META_APP_SECRET
 META_VERIFY_TOKEN
 INSTAGRAM_ACCESS_TOKEN
 ADMIN_SESSION_SECRET
-TOKEN_ENCRYPTION_KEY
 ```
 
-## 일반 Variables
+## 一般 Variables
 
 ```text
 META_GRAPH_API_VERSION

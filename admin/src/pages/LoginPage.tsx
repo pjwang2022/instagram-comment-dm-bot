@@ -2,7 +2,7 @@
 // 首次啟動（admin_users 為空）時改顯示「建立管理者帳號」表單，讓一鍵部署
 // 的使用者不需開 terminal 即可完成後台設定。
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { apiGet, apiPost, type ApiError } from '../api/client';
 
 const MIN_PASSWORD_LENGTH = 12;

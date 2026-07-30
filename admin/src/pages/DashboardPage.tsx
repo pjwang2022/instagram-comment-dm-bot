@@ -1,6 +1,6 @@
 // 儀表板：系統控制 + 今日總覽 + 已設定自動化的貼文（每篇顯示數據）。
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { AppHeader } from '../components/AppHeader';
 import { apiGet, apiPost, type ApiError } from '../api/client';
 

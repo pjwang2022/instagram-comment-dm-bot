@@ -1,6 +1,6 @@
 // 自動化編輯器：為某篇貼文建立/編輯留言關鍵字自動回覆。
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AppHeader } from '../components/AppHeader';
 import { apiGet, apiPost, type ApiError } from '../api/client';
 
