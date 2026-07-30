@@ -16,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<DashboardPage />} />
         <Route path="/media" element={<MediaPage />} />
         <Route path="/media/:mediaId/automation" element={<AutomationEditorPage />} />
+        <Route path="/automations/new" element={<AutomationEditorPage />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

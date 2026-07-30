@@ -251,3 +251,122 @@ describe('processCommentEvent — retry semantics', () => {
     expect(publicCalls).toHaveLength(1);
   });
 });
+
+describe('processCommentEvent — apply scope（待命與全帳號預設）', () => {
+  async function seedAccountAndMedia(publishedAt: string | null = '2026-07-30T00:00:00Z') {
+    await db.insert(schema.instagramAccounts).values({ id: 'acct', instagramAccountId: 'ig-acct' });
+    await db.insert(schema.instagramMedia).values({
+      id: 'media',
+      instagramAccountId: 'acct',
+      instagramMediaId: 'ig-media',
+      mediaType: 'IMAGE',
+      publishedAt,
+    });
+  }
+
+  async function seedScopedAutomation(
+    overrides: Partial<typeof schema.automations.$inferInsert> = {},
+  ) {
+    await db.insert(schema.automations).values({
+      id: 'auto',
+      instagramMediaId: null,
+      applyScope: 'next_post',
+      name: 'scoped',
+      status: 'active',
+      matchType: 'contains_any',
+      publicReplyEnabled: 1,
+      privateReplyEnabled: 1,
+      openingDm: '這是連結',
+      buttonText: '開啟',
+      buttonUrl: 'https://example.com',
+      createdAt: '2026-07-29T00:00:00Z',
+      updatedAt: '2026-07-29T00:00:00Z',
+      ...overrides,
+    });
+    await db.insert(schema.automationKeywords).values({
+      id: 'kw1',
+      automationId: 'auto',
+      keyword: 'adhd',
+      normalizedKeyword: 'adhd',
+    });
+    await db.insert(schema.publicReplyVariants).values({
+      id: 'v1',
+      automationId: 'auto',
+      message: '已私訊你囉',
+      enabled: 1,
+    });
+  }
+
+  it('binds the pending next_post automation to a newer post on its first comment and replies', async () => {
+    await seedAccountAndMedia('2026-07-30T00:00:00Z'); // 晚於 automation createdAt
+    await seedScopedAutomation();
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+    const { client } = okClient();
+
+    const outcome = await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+    expect(outcome.kind).toBe('completed');
+
+    const auto = (await db.select().from(schema.automations))[0];
+    expect(auto.instagramMediaId).toBe('media');
+    expect(auto.applyScope).toBe('media'); // 綁定後轉為一般單篇自動化
+  });
+
+  it('does not bind next_post to a post published before the automation existed', async () => {
+    await seedAccountAndMedia('2026-07-01T00:00:00Z'); // 早於 automation createdAt
+    await seedScopedAutomation();
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+    const { client } = okClient();
+
+    const outcome = await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+    expect(outcome.kind).toEqual('skipped');
+
+    const auto = (await db.select().from(schema.automations))[0];
+    expect(auto.instagramMediaId).toBeNull(); // 仍待命
+  });
+
+  it('falls back to the account_default automation without binding it', async () => {
+    await seedAccountAndMedia();
+    await seedScopedAutomation({ applyScope: 'account_default' });
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+    const { client } = okClient();
+
+    const outcome = await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+    expect(outcome.kind).toBe('completed');
+
+    const auto = (await db.select().from(schema.automations))[0];
+    expect(auto.instagramMediaId).toBeNull(); // 預設自動化不綁定、持續服務所有貼文
+    expect(auto.applyScope).toBe('account_default');
+  });
+
+  it('auto-discovers an unknown media from Meta and applies the account default', async () => {
+    // 只有帳號、沒有 media row——模擬排程貼文剛上線、尚未同步就有留言。
+    await db.insert(schema.instagramAccounts).values({ id: 'acct', instagramAccountId: 'ig-acct' });
+    await seedScopedAutomation({ applyScope: 'account_default' });
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+
+    const fetchImpl = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (!init || init.method !== 'POST') {
+        // GET media 資訊（自動補抓）
+        return new Response(
+          JSON.stringify({
+            id: 'ig-media',
+            media_type: 'IMAGE',
+            caption: '新貼文',
+            timestamp: '2026-07-30T01:00:00Z',
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ id: 'x', message_id: 'm' }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new MetaClient({ accessToken: 't', graphApiVersion: 'v21.0', fetchImpl });
+
+    const outcome = await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+    expect(outcome.kind).toBe('completed');
+
+    const mediaRows = await db.select().from(schema.instagramMedia);
+    expect(mediaRows).toHaveLength(1);
+    expect(mediaRows[0].instagramMediaId).toBe('ig-media');
+    expect(mediaRows[0].caption).toBe('新貼文');
+  });
+});

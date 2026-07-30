@@ -14,6 +14,14 @@ interface Media {
   automationId: string | null;
 }
 
+interface OverviewAutomation {
+  automationId: string;
+  name: string;
+  status: string;
+  applyScope: string;
+  media: { id: string } | null;
+}
+
 function typeLabel(t: string): string {
   if (t === 'VIDEO') return '影片';
   if (t === 'REELS') return 'Reels';
@@ -70,14 +78,20 @@ function Thumb({ url, type }: { url: string | null; type: string }) {
 export function MediaPage() {
   const navigate = useNavigate();
   const [media, setMedia] = useState<Media[]>([]);
+  const [pendingAutomations, setPendingAutomations] = useState<OverviewAutomation[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const m = await apiGet<{ media: Media[] }>('/api/admin/media?limit=100');
+      const [m, o] = await Promise.all([
+        apiGet<{ media: Media[] }>('/api/admin/media?limit=100'),
+        apiGet<{ automations: OverviewAutomation[] }>('/api/admin/automations/overview'),
+      ]);
       setMedia(m.media);
+      // 尚未綁定貼文的自動化（待命/全帳號預設）。
+      setPendingAutomations(o.automations.filter((a) => a.applyScope !== 'media'));
     } catch (e) {
       if ((e as ApiError).status === 401) navigate('/login');
       else setError((e as ApiError).message);
@@ -126,6 +140,56 @@ export function MediaPage() {
         </div>
 
         {error ? <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div> : null}
+
+        <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+          <div className="status-line" style={{ justifyContent: 'space-between' }}>
+            <div>
+              <strong>排程／新貼文自動化</strong>
+              <p className="page-subtitle" style={{ margin: 0 }}>
+                排程中的貼文在上線前不會出現在下方列表（Instagram API 限制）。想事先設定，
+                建立「待命自動化」——新貼文一上線就自動接上，第一則留言也不會漏。
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate('/automations/new?scope=next_post')}>
+                ＋ 待命自動化
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => navigate('/automations/new?scope=account_default')}
+              >
+                ＋ 全帳號預設
+              </button>
+            </div>
+          </div>
+          {pendingAutomations.length > 0 ? (
+            <ul style={{ listStyle: 'none', margin: 'var(--space-3) 0 0', padding: 0 }}>
+              {pendingAutomations.map((a) => (
+                <li
+                  key={a.automationId}
+                  className="status-line"
+                  style={{ justifyContent: 'space-between', padding: 'var(--space-2) 0' }}
+                >
+                  <span>
+                    {a.name}{' '}
+                    <span className="badge badge-neutral">
+                      {a.applyScope === 'next_post' ? '待綁定：下一篇新貼文' : '全帳號預設'}
+                    </span>{' '}
+                    <StatusTag status={a.status} />
+                  </span>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() =>
+                      navigate(`/automations/new?scope=${a.applyScope}&automationId=${a.automationId}`)
+                    }
+                  >
+                    編輯
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
 
         {loading ? (
           <div className="state-note">載入中…</div>

@@ -65,10 +65,13 @@ export const instagramMedia = sqliteTable(
 
 export const automations = sqliteTable('automations', {
   id: text('id').primaryKey(),
+  // 可為 NULL：apply_scope 為 next_post（待命，等下一篇新貼文自動綁定）或
+  // account_default（全帳號預設，不綁定特定貼文）時尚未/不會綁定媒體。
   instagramMediaId: text('instagram_media_id')
-    .notNull()
     .unique()
     .references(() => instagramMedia.id),
+  // media＝綁定單篇貼文（預設）；next_post＝綁定下一篇新貼文；account_default＝所有無專屬自動化的貼文。
+  applyScope: text('apply_scope').notNull().default('media'),
   name: text('name').notNull(),
   status: text('status').notNull().default('draft'),
   matchType: text('match_type').notNull().default('contains_any'),

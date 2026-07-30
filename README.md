@@ -29,6 +29,7 @@ Prefer doing everything by hand? Follow the full [Quick Start](#quick-start) bel
 ## Features
 
 - **Keyword automations per post** — `contains_any` / `exact_any` / `all_comments` matching with text normalization and exclusion rules.
+- **Works with scheduled posts** — the Instagram API can't see unpublished posts, so you can pre-arm a "next post" automation (auto-binds the moment the post goes live, catching even the first comment) or set an account-wide default for all new posts.
 - **One-time public reply + one DM** per commenter, with rotating public reply variants and an optional link button in the DM.
 - **Idempotent by design** — webhook events and automation runs are deduplicated, so Meta's webhook retries never cause double replies.
 - **Automatic retries with backoff** (30s / 2m / 10m) for transient Meta API failures; permanent errors (invalid token, permission, policy) stop immediately.

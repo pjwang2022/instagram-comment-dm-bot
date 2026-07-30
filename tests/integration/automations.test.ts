@@ -116,3 +116,38 @@ describe('automations CRUD + activation', () => {
     expect(body.reasons).toContain('keywords_required');
   });
 });
+
+describe('scoped automations（next_post / account_default）', () => {
+  it('creates a next_post automation without a media id', async () => {
+    const app = createApp();
+    const res = await app.fetch(
+      req('', { applyScope: 'next_post', name: '排程活動', keywords: ['連結'] }),
+      env,
+    );
+    expect(res.status).toBe(201);
+    const { id } = (await res.json()) as { id: string };
+    const detail = await app.fetch(
+      new Request(`https://igbot.example.com/api/admin/automations/${id}`, {
+        headers: { Cookie: cookie },
+      }),
+      env,
+    );
+    const d = (await detail.json()) as { automation: { applyScope: string; instagramMediaId: string | null } };
+    expect(d.automation.applyScope).toBe('next_post');
+    expect(d.automation.instagramMediaId).toBeNull();
+  });
+
+  it('allows only one account_default automation', async () => {
+    const app = createApp();
+    const first = await app.fetch(req('', { applyScope: 'account_default', name: '預設' }), env);
+    expect(first.status).toBe(201);
+    const second = await app.fetch(req('', { applyScope: 'account_default', name: '預設2' }), env);
+    expect(second.status).toBe(409);
+  });
+
+  it('still rejects a media-scoped automation without instagramMediaId', async () => {
+    const app = createApp();
+    const res = await app.fetch(req('', { name: '缺媒體' }), env);
+    expect(res.status).toBe(400);
+  });
+});

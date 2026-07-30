@@ -11,6 +11,7 @@ interface AutomationDetail {
     id: string;
     name: string;
     status: string;
+    applyScope?: string;
     matchType: MatchType;
     publicReplyEnabled: number;
     privateReplyEnabled: number;
@@ -38,6 +39,11 @@ export function AutomationEditorPage() {
   const { mediaId } = useParams();
   const [searchParams] = useSearchParams();
   const automationId = searchParams.get('automationId');
+  // 無 mediaId 時的套用範圍：next_post（下一篇新貼文）或 account_default（全帳號預設）。
+  const scopeParam = searchParams.get('scope');
+  const [applyScope, setApplyScope] = useState<string>(
+    mediaId ? 'media' : (scopeParam ?? 'next_post'),
+  );
 
   const [name, setName] = useState('');
   const [matchType, setMatchType] = useState<MatchType>('contains_any');
@@ -76,6 +82,7 @@ export function AutomationEditorPage() {
       setButtonUrl(d.automation.buttonUrl ?? '');
       setDailyLimit(d.automation.dailyLimit != null ? String(d.automation.dailyLimit) : '');
       setStatus(d.automation.status);
+      setApplyScope(d.automation.applyScope ?? 'media');
     } catch (e) {
       if ((e as ApiError).status === 401) navigate('/login');
       else setError((e as ApiError).message);
@@ -97,7 +104,7 @@ export function AutomationEditorPage() {
 
   function payload() {
     return {
-      instagramMediaId: mediaId,
+      ...(mediaId ? { instagramMediaId: mediaId } : { applyScope }),
       name: name.trim(),
       matchType,
       keywords: matchType === 'all_comments' ? [] : keywords,
@@ -195,8 +202,17 @@ export function AutomationEditorPage() {
 
         <div className="status-line">
           <h1 className="page-title" style={{ margin: 0 }}>
-            {savedId ? '編輯自動化' : '設定自動化'}
+            {applyScope === 'next_post'
+              ? '待命自動化：下一篇新貼文'
+              : applyScope === 'account_default'
+                ? '全帳號預設自動化'
+                : savedId
+                  ? '編輯自動化'
+                  : '設定自動化'}
           </h1>
+          {applyScope === 'next_post' ? (
+            <span className="badge badge-neutral">待綁定</span>
+          ) : null}
           {status === 'active' ? (
             <span className="badge badge-success">啟用中</span>
           ) : status === 'paused' ? (
@@ -205,6 +221,16 @@ export function AutomationEditorPage() {
             <span className="badge badge-neutral">草稿</span>
           )}
         </div>
+
+        {applyScope === 'next_post' ? (
+          <p className="page-subtitle">
+            先把關鍵字與回覆設定好並啟用；下一篇發布的新貼文（含排程貼文上線）會自動接上這組自動化，連第一則留言都不會漏。
+          </p>
+        ) : applyScope === 'account_default' ? (
+          <p className="page-subtitle">
+            沒有專屬自動化的貼文都會套用這組設定（全帳號僅能有一組）。個別貼文另外設定的自動化優先於此預設。
+          </p>
+        ) : null}
 
         {error ? <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div> : null}
         {activationErrors.length ? (

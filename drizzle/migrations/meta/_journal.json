@@ -8,6 +8,13 @@
       "when": 1785234035005,
       "tag": "0000_organic_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785387467268,
+      "tag": "0001_automation_apply_scope",
+      "breakpoints": true
     }
   ]
 }

@@ -18,8 +18,12 @@ import { adminApiRateLimitMiddleware } from '../security/rate-limit';
 import { VALID_MATCH_TYPES, validateActivation } from '../shared/validation';
 import { requireAdminAuth } from './auth';
 
+const VALID_APPLY_SCOPES = ['media', 'next_post', 'account_default'] as const;
+type ApplyScope = (typeof VALID_APPLY_SCOPES)[number];
+
 interface CreateBody {
   instagramMediaId?: string;
+  applyScope?: string;
   name?: string;
   matchType?: string;
   keywords?: unknown;
@@ -82,7 +86,10 @@ export function createAutomationRoutes() {
       return c.json({ error: '請求格式錯誤' }, 400);
     }
 
-    if (!body.instagramMediaId || !body.name) {
+    const applyScope: ApplyScope = VALID_APPLY_SCOPES.includes(body.applyScope as ApplyScope)
+      ? (body.applyScope as ApplyScope)
+      : 'media';
+    if (!body.name || (applyScope === 'media' && !body.instagramMediaId)) {
       return c.json({ error: '缺少必要欄位' }, 400);
     }
     const matchType = body.matchType ?? 'contains_any';
@@ -91,17 +98,31 @@ export function createAutomationRoutes() {
     }
 
     const db = createDb(c.env.DB);
-    const media = await db
-      .select()
-      .from(instagramMedia)
-      .where(eq(instagramMedia.id, body.instagramMediaId))
-      .limit(1);
-    if (media.length === 0) return c.json({ error: '貼文不存在' }, 404);
+    if (applyScope === 'media') {
+      const media = await db
+        .select()
+        .from(instagramMedia)
+        .where(eq(instagramMedia.id, body.instagramMediaId!))
+        .limit(1);
+      if (media.length === 0) return c.json({ error: '貼文不存在' }, 404);
+    }
+    if (applyScope === 'account_default') {
+      // 全帳號預設只允許一組，多組會讓「該套用哪組」變得不可預期。
+      const existing = await db
+        .select()
+        .from(automations)
+        .where(eq(automations.applyScope, 'account_default'))
+        .limit(1);
+      if (existing[0]) {
+        return c.json({ error: '已存在全帳號預設自動化，請編輯既有的那一組' }, 409);
+      }
+    }
 
     const automationId = crypto.randomUUID();
     await db.insert(automations).values({
       id: automationId,
-      instagramMediaId: body.instagramMediaId,
+      instagramMediaId: applyScope === 'media' ? body.instagramMediaId! : null,
+      applyScope,
       name: body.name,
       status: 'draft',
       matchType,
@@ -132,12 +153,15 @@ export function createAutomationRoutes() {
 
     const items = autos
       .map((a: typeof automations.$inferSelect) => {
-        const media = mediaById.get(a.instagramMediaId) as typeof instagramMedia.$inferSelect | undefined;
+        const media = (a.instagramMediaId ? mediaById.get(a.instagramMediaId) : undefined) as
+          | typeof instagramMedia.$inferSelect
+          | undefined;
         const myRuns = runs.filter((r: { automationId: string }) => r.automationId === a.id);
         return {
           automationId: a.id,
           name: a.name,
           status: a.status,
+          applyScope: a.applyScope,
           matchType: a.matchType,
           keywordCount: kws.filter((k: { automationId: string }) => k.automationId === a.id).length,
           media: media
@@ -245,22 +269,27 @@ export function createAutomationRoutes() {
       : [];
     const settings = await db.select().from(systemSettings).limit(1);
 
-    // Token 健康度：以帳號的 circuit_breaker_status 與 token_expires_at 粗略判斷（MVP）。
+    // Token 健康度：以帳號的 circuit_breaker_status 粗略判斷（MVP）。
+    // 未綁定貼文的自動化（next_post / account_default）直接看帳號本身。
     let tokenHealthy = true;
     if (automation) {
-      const media = await db
-        .select()
-        .from(instagramMedia)
-        .where(eq(instagramMedia.id, automation.instagramMediaId))
-        .limit(1);
-      if (media[0]) {
-        const acct = await db
+      let accountInternalId: string | null = null;
+      if (automation.instagramMediaId) {
+        const media = await db
           .select()
-          .from(instagramAccounts)
-          .where(eq(instagramAccounts.id, media[0].instagramAccountId))
+          .from(instagramMedia)
+          .where(eq(instagramMedia.id, automation.instagramMediaId))
           .limit(1);
-        if (acct[0]) tokenHealthy = acct[0].circuitBreakerStatus === 'closed';
+        accountInternalId = media[0]?.instagramAccountId ?? null;
       }
+      const acct = accountInternalId
+        ? await db
+            .select()
+            .from(instagramAccounts)
+            .where(eq(instagramAccounts.id, accountInternalId))
+            .limit(1)
+        : await db.select().from(instagramAccounts).limit(1);
+      if (acct[0]) tokenHealthy = acct[0].circuitBreakerStatus === 'closed';
     }
 
     const errors = validateActivation({

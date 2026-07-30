@@ -6,6 +6,7 @@ import type { AppBindings } from '../app';
 import { createDb } from '../database/client';
 import * as schema from '../database/schema';
 import { instagramAccounts, instagramMedia } from '../database/schema';
+import { bindNextPostAutomation } from '../automation/apply-scope';
 import { MetaClient, type MetaClient as MetaClientType } from './client';
 
 type SchemaDb = BaseSQLiteDatabase<'sync' | 'async', unknown, typeof schema>;
@@ -156,5 +157,17 @@ export async function runScheduledSync(env: AppBindings): Promise<SyncSummary> {
     summary.inserted += counts.inserted;
     summary.updated += counts.updated;
   }
+
+  // 同步後：讓待命自動化（next_post）綁定新發現、尚無自動化的貼文。
+  // 首則留言的 webhook 也會觸發同樣的綁定；這裡補跑一次是為了讓管理者
+  // 不必等留言進來，就能在後台看到「排程貼文已接上待命自動化」。
+  const allMedia = await db.select().from(instagramMedia);
+  const byPublishedAt = allMedia
+    .filter((m) => m.publishedAt)
+    .sort((a, b) => (a.publishedAt! < b.publishedAt! ? -1 : 1));
+  for (const media of byPublishedAt) {
+    await bindNextPostAutomation(db, media);
+  }
+
   return summary;
 }

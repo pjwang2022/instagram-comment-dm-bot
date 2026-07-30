@@ -3,13 +3,12 @@
 //
 // 冪等關鍵：同一 (automation, comment) 只有一個 run；queue 重試時只重試「尚未成功」的動作
 // （靠 run 上的 public_reply_status / private_reply_status），確保每個 Comment ID 最多各發一次。
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '../database/schema';
 import {
   apiAttempts,
   automationKeywords,
-  automations,
   instagramAccounts,
   instagramMedia,
   systemSettings,
@@ -21,6 +20,7 @@ import { replyToComment } from '../meta/comments';
 import { sendPrivateReply } from '../meta/private-replies';
 import type { CommentEventMessage } from '../queue/producer';
 import { nextRetryDelaySeconds } from '../queue/retry-policy';
+import { resolveAutomationForMedia } from './apply-scope';
 import { matchKeywords, type MatchType } from './matcher';
 import { normalizeCommentText } from './normalizer';
 import { ensureAutomationRun } from './idempotency';
@@ -34,6 +34,50 @@ export type EngineOutcome =
   | { kind: 'no_match' }
   | { kind: 'completed'; runId: string; publicReplyStatus: string; privateReplyStatus: string }
   | { kind: 'retry'; delaySeconds: number | null; runId: string; reason: string };
+
+// 向 Meta 補抓單篇貼文資訊並寫入 instagram_media（本地尚未同步到的新貼文）。
+async function discoverMedia(
+  db: SchemaDb,
+  metaClient: MetaClient,
+  instagramMediaId: string,
+): Promise<typeof instagramMedia.$inferSelect | null> {
+  const account = (await db.select().from(instagramAccounts).limit(1))[0];
+  if (!account) return null;
+
+  const res = await metaClient.get<{
+    id?: string;
+    media_type?: string;
+    caption?: string;
+    thumbnail_url?: string;
+    media_url?: string;
+    permalink?: string;
+    timestamp?: string;
+  }>(instagramMediaId, {
+    fields: 'id,media_type,caption,thumbnail_url,media_url,permalink,timestamp',
+  });
+  if (!res.ok || !res.data?.id) return null;
+
+  await db
+    .insert(instagramMedia)
+    .values({
+      id: crypto.randomUUID(),
+      instagramAccountId: account.id,
+      instagramMediaId: res.data.id,
+      mediaType: res.data.media_type ?? 'UNKNOWN',
+      caption: res.data.caption ?? null,
+      thumbnailUrl: res.data.thumbnail_url ?? res.data.media_url ?? null,
+      permalink: res.data.permalink ?? null,
+      publishedAt: res.data.timestamp ?? null,
+      lastSyncedAt: new Date().toISOString(),
+    })
+    .onConflictDoNothing();
+  const rows = await db
+    .select()
+    .from(instagramMedia)
+    .where(eq(instagramMedia.instagramMediaId, res.data.id))
+    .limit(1);
+  return rows[0] ?? null;
+}
 
 export interface EngineDeps {
   db: SchemaDb;
@@ -92,13 +136,18 @@ export async function processCommentEvent(
     return { kind: 'skipped', reason: 'emergency_stop' };
   }
 
-  // 3. Media（未同步的貼文 = 沒設定自動化）
-  const mediaRows = await db
+  // 3. Media——本地沒有時向 Meta 補抓（排程貼文上線後的首則留言可能早於每日同步；
+  //    這也是待命自動化「零時差綁定」的入口）。抓不到才視為 media_not_found。
+  let mediaRows = await db
     .select()
     .from(instagramMedia)
     .where(eq(instagramMedia.instagramMediaId, message.instagramMediaId))
     .limit(1);
-  if (mediaRows.length === 0) return { kind: 'skipped', reason: 'media_not_found' };
+  if (mediaRows.length === 0) {
+    const discovered = await discoverMedia(db, metaClient, message.instagramMediaId);
+    if (!discovered) return { kind: 'skipped', reason: 'media_not_found' };
+    mediaRows = [discovered];
+  }
   const media = mediaRows[0];
 
   // 4. 帳號（停用 / 熔斷）
@@ -112,14 +161,9 @@ export async function processCommentEvent(
   if (account.automationEnabled === 0) return { kind: 'skipped', reason: 'account_disabled' };
   if (account.circuitBreakerStatus !== 'closed') return { kind: 'skipped', reason: 'circuit_open' };
 
-  // 5. Active automation
-  const autoRows = await db
-    .select()
-    .from(automations)
-    .where(and(eq(automations.instagramMediaId, media.id), eq(automations.status, 'active')))
-    .limit(1);
-  if (autoRows.length === 0) return { kind: 'skipped', reason: 'no_active_automation' };
-  const automation = autoRows[0];
+  // 5. Active automation：專屬 → 待命（next_post）綁定 → 全帳號預設（account_default）。
+  const automation = await resolveAutomationForMedia(db, media);
+  if (!automation) return { kind: 'skipped', reason: 'no_active_automation' };
 
   // 6. 排除：自己的留言
   if (
