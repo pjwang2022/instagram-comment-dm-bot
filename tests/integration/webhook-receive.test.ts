@@ -55,7 +55,7 @@ beforeEach(() => {
   enqueued = [];
   env = {
     DB: createD1Shim(sqlite),
-    META_APP_SECRET: SECRET,
+    INSTAGRAM_APP_SECRET: SECRET,
     LOG_LEVEL: 'error',
     COMMENT_QUEUE: { send: async (m: unknown) => void enqueued.push(m) },
   };

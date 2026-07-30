@@ -6,13 +6,13 @@
 # 不要把正式機密寫進任何會被 git 追蹤的檔案。
 
 # Meta App Dashboard 的 App Secret，用於驗證 Webhook 簽章。
-META_APP_SECRET=
+INSTAGRAM_APP_SECRET=
 
 # 自訂的 Webhook Verify Token，需與 Meta App Dashboard 設定的值一致。
-META_VERIFY_TOKEN=
+WEBHOOK_VERIFY_TOKEN=
 
 # Instagram Professional Account 的 Access Token。
-INSTAGRAM_ACCESS_TOKEN=
+INSTAGRAM_ACCOUNT_ACCESS_TOKEN=
 
 # 管理者 Session 簽章用的隨機字串（建議 32 bytes 以上的隨機值）。
 ADMIN_SESSION_SECRET=

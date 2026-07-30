@@ -18,7 +18,7 @@ export async function handleWebhookReceive(
   const rawBody = await c.req.arrayBuffer();
   const signature = c.req.header('X-Hub-Signature-256');
 
-  const valid = await verifyWebhookSignature(c.env.META_APP_SECRET, rawBody, signature);
+  const valid = await verifyWebhookSignature(c.env.INSTAGRAM_APP_SECRET, rawBody, signature);
   if (!valid) {
     // 驗證失敗不得進入 Queue，寫安全 log（不記 body 內容）。
     logger.warn({ action: 'webhook.signature_invalid', httpStatus: 401 });

@@ -13,7 +13,7 @@ export async function consumeCommentEvents(
   const deps: EngineDeps = {
     db: createDb(env.DB),
     metaClient: new MetaClient({
-      accessToken: env.INSTAGRAM_ACCESS_TOKEN,
+      accessToken: env.INSTAGRAM_ACCOUNT_ACCESS_TOKEN,
       graphApiVersion: env.META_GRAPH_API_VERSION,
     }),
   };

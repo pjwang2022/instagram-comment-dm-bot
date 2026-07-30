@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app';
 
-const env = { META_VERIFY_TOKEN: 'my-verify-token' } as Record<string, unknown>;
+const env = { WEBHOOK_VERIFY_TOKEN: 'my-verify-token' } as Record<string, unknown>;
 
 function verifyRequest(params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString();

@@ -16,7 +16,7 @@
 
 1. **複製本 repo** 到你自己的 GitHub（或 GitLab）帳號。
 2. **自動開通資源**——在你的 Cloudflare 帳號建立 D1 資料庫與 Queue（Queues 需要 **Workers Paid** 方案）。
-3. **提示你填入四個 secrets**（清單見 [`.dev.vars.example`](.dev.vars.example)：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`）。
+3. **提示你填入四個 secrets**（清單見 [`.dev.vars.example`](.dev.vars.example)：`INSTAGRAM_APP_SECRET`、`WEBHOOK_VERIFY_TOKEN`、`INSTAGRAM_ACCOUNT_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`）。
 4. **建置並部署**，同時設好 push 即自動重新部署：之後改你那份 repo、push 就會自動上線。
 
 首次部署完成後，到你自己的 repo 收尾：
@@ -68,9 +68,9 @@ cd instagram-comment-dm-bot
 npm ci && npm ci --prefix admin
 
 # 正式環境機密。每個 secret 設定後約 30 秒才生效。
-npx wrangler secret put META_APP_SECRET
-npx wrangler secret put META_VERIFY_TOKEN        # 自訂隨機字串；步驟 2 會再用到
-npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
+npx wrangler secret put INSTAGRAM_APP_SECRET
+npx wrangler secret put WEBHOOK_VERIFY_TOKEN        # 自訂隨機字串；步驟 2 會再用到
+npx wrangler secret put INSTAGRAM_ACCOUNT_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32 bytes 以上隨機值
 
 # 部署——首次執行會自動建立 D1 資料庫與 Queue、建置管理後台、
@@ -81,10 +81,10 @@ npm run deploy
 ### 2. Meta 端
 
 1. 到 [Meta for Developers](https://developers.facebook.com/) 建立 App 並加入 **Instagram** 產品。
-2. 為你的專業帳號取得 access token，權限需涵蓋讀取留言、回覆留言與發送訊息（例如 `instagram_business_basic`、`instagram_business_manage_comments`、`instagram_business_manage_messages`——實際名稱以 Meta 官方文件為準），存入 `INSTAGRAM_ACCESS_TOKEN` secret。請使用**長效（long-lived）token** 並留意到期日——每日 cron 會在到期前提醒。
+2. 為你的專業帳號取得 access token，權限需涵蓋讀取留言、回覆留言與發送訊息（例如 `instagram_business_basic`、`instagram_business_manage_comments`、`instagram_business_manage_messages`——實際名稱以 Meta 官方文件為準），存入 `INSTAGRAM_ACCOUNT_ACCESS_TOKEN` secret。請使用**長效（long-lived）token** 並留意到期日——每日 cron 會在到期前提醒。
 3. 設定 webhook 訂閱：
    - Callback URL：`https://<你的網域>/api/webhooks/meta/instagram`
-   - Verify token：與 `META_VERIFY_TOKEN` secret 相同的值
+   - Verify token：與 `WEBHOOK_VERIFY_TOKEN` secret 相同的值
    - 訂閱 **`comments`** 欄位。
 4. App 審核（App Review）需要公開的隱私政策網址——本專案內建於 `https://<你的網域>/privacy`（頁面顯示的聯絡信箱即你的管理者帳號 Email）。
 

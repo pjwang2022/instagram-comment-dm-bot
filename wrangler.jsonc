@@ -5,7 +5,7 @@
 //   本機或你自己的 repo 副本）。
 // 若你會對本 repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，
 // 避免把寫回的個人資源 ID 提交上去。
-// 機密（META_APP_SECRET 等）不放這裡：本機開發用 .dev.vars（見 .dev.vars.example），
+// 機密（INSTAGRAM_APP_SECRET 等）不放這裡：本機開發用 .dev.vars（見 .dev.vars.example），
 // 正式環境用 `wrangler secret put <NAME>` 個別設定。
 {
   "$schema": "node_modules/wrangler/config-schema.json",

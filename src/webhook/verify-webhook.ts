@@ -8,7 +8,7 @@ export function handleWebhookVerification(c: Context<{ Bindings: AppBindings }>)
   const token = c.req.query('hub.verify_token');
   const challenge = c.req.query('hub.challenge');
 
-  if (mode === 'subscribe' && token && token === c.env.META_VERIFY_TOKEN) {
+  if (mode === 'subscribe' && token && token === c.env.WEBHOOK_VERIFY_TOKEN) {
     // 正確時原樣回傳 challenge（純文字）。
     return c.text(challenge ?? '', 200);
   }

@@ -112,7 +112,7 @@ export async function ensureAccountRegistered(
   }>('me', { fields: 'id,username,account_type,profile_picture_url' });
   if (!res.ok || !res.data?.id) {
     const reason = res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error');
-    return `自動註冊 Instagram 帳號失敗 (HTTP ${res.status}, ${reason})——請確認 INSTAGRAM_ACCESS_TOKEN 是否有效`;
+    return `自動註冊 Instagram 帳號失敗 (HTTP ${res.status}, ${reason})——請確認 INSTAGRAM_ACCOUNT_ACCESS_TOKEN 是否有效`;
   }
   await db
     .insert(instagramAccounts)
@@ -131,7 +131,7 @@ export async function ensureAccountRegistered(
 export async function runScheduledSync(env: AppBindings): Promise<SyncSummary> {
   const db = createDb(env.DB);
   const client = new MetaClient({
-    accessToken: env.INSTAGRAM_ACCESS_TOKEN,
+    accessToken: env.INSTAGRAM_ACCOUNT_ACCESS_TOKEN,
     graphApiVersion: env.META_GRAPH_API_VERSION,
     baseUrl: env.META_BASE_URL || undefined,
   });

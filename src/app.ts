@@ -15,9 +15,9 @@ export type AppBindings = {
   COMMENT_QUEUE: Queue<CommentEventMessage>;
   ASSETS: Fetcher;
   ADMIN_RATE_LIMITER: RateLimiter;
-  META_APP_SECRET: string;
-  META_VERIFY_TOKEN: string;
-  INSTAGRAM_ACCESS_TOKEN: string;
+  INSTAGRAM_APP_SECRET: string;
+  WEBHOOK_VERIFY_TOKEN: string;
+  INSTAGRAM_ACCOUNT_ACCESS_TOKEN: string;
   ADMIN_SESSION_SECRET: string;
   META_GRAPH_API_VERSION: string;
   META_BASE_URL?: string;

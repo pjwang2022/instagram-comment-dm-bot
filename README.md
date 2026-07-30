@@ -16,7 +16,7 @@ Clicking the button will:
 
 1. **Copy this repo** into your own GitHub (or GitLab) account.
 2. **Provision the resources** in your Cloudflare account — the D1 database and the Queue (Queues requires the **Workers Paid** plan).
-3. **Prompt you for the four secrets** listed in [`.dev.vars.example`](.dev.vars.example) (`META_APP_SECRET`, `META_VERIFY_TOKEN`, `INSTAGRAM_ACCESS_TOKEN`, `ADMIN_SESSION_SECRET`).
+3. **Prompt you for the four secrets** listed in [`.dev.vars.example`](.dev.vars.example) (`INSTAGRAM_APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `INSTAGRAM_ACCOUNT_ACCESS_TOKEN`, `ADMIN_SESSION_SECRET`).
 4. **Build & deploy**, and set up push-to-deploy: every push to your copy redeploys automatically.
 
 After the first deploy, finish up in your own repo copy:
@@ -68,9 +68,9 @@ cd instagram-comment-dm-bot
 npm ci && npm ci --prefix admin
 
 # Secrets (production). Each takes ~30s to propagate after `put`.
-npx wrangler secret put META_APP_SECRET
-npx wrangler secret put META_VERIFY_TOKEN        # any random string; reused in step 2
-npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
+npx wrangler secret put INSTAGRAM_APP_SECRET
+npx wrangler secret put WEBHOOK_VERIFY_TOKEN        # any random string; reused in step 2
+npx wrangler secret put INSTAGRAM_ACCOUNT_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32+ random bytes
 
 # Deploy — the first run auto-creates the D1 database and the Queue,
@@ -82,10 +82,10 @@ npm run deploy
 ### 2. Meta side
 
 1. In [Meta for Developers](https://developers.facebook.com/), create an app and add the **Instagram** product.
-2. Obtain an access token for your Professional account with permissions to read comments, reply to comments, and send messages (e.g. `instagram_business_basic`, `instagram_business_manage_comments`, `instagram_business_manage_messages` — confirm current names in Meta's docs), then store it as the `INSTAGRAM_ACCESS_TOKEN` secret. Use a **long-lived token** and note its expiry — the daily cron warns before it lapses.
+2. Obtain an access token for your Professional account with permissions to read comments, reply to comments, and send messages (e.g. `instagram_business_basic`, `instagram_business_manage_comments`, `instagram_business_manage_messages` — confirm current names in Meta's docs), then store it as the `INSTAGRAM_ACCOUNT_ACCESS_TOKEN` secret. Use a **long-lived token** and note its expiry — the daily cron warns before it lapses.
 3. Configure the webhook subscription:
    - Callback URL: `https://<your-domain>/api/webhooks/meta/instagram`
-   - Verify token: the same value you stored as `META_VERIFY_TOKEN`
+   - Verify token: the same value you stored as `WEBHOOK_VERIFY_TOKEN`
    - Subscribe to the **`comments`** field.
 4. App Review requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (the contact email shown is your admin account's email).
 

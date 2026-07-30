@@ -5,7 +5,7 @@
 // 執行：npm run check-meta
 //
 // 需要的值（填在 .dev.vars）：
-//   INSTAGRAM_ACCESS_TOKEN=...   （必填）
+//   INSTAGRAM_ACCOUNT_ACCESS_TOKEN=...   （必填）
 //   INSTAGRAM_ACCOUNT_ID=...     （選填；沒填會嘗試用 /me 推斷）
 //   META_GRAPH_API_VERSION=v21.0 （選填，預設 v21.0）
 //   META_BASE_URL=...            （選填；Instagram Login 用 https://graph.instagram.com，
@@ -48,7 +48,7 @@ const info = (s: string) => `\x1b[36mℹ\x1b[0m ${s}`;
 
 async function main() {
   const vars = loadDevVars();
-  const token = get(vars, 'INSTAGRAM_ACCESS_TOKEN');
+  const token = get(vars, 'INSTAGRAM_ACCOUNT_ACCESS_TOKEN');
   const accountId = get(vars, 'INSTAGRAM_ACCOUNT_ID');
   const version = get(vars, 'META_GRAPH_API_VERSION') || 'v21.0';
   const baseUrl = get(vars, 'META_BASE_URL') || 'https://graph.instagram.com';
@@ -60,7 +60,7 @@ async function main() {
   console.log('');
 
   if (!token || token.startsWith('<TODO') || token.startsWith('dev-')) {
-    console.log(bad('INSTAGRAM_ACCESS_TOKEN 尚未填入真實值（請編輯 .dev.vars）。'));
+    console.log(bad('INSTAGRAM_ACCOUNT_ACCESS_TOKEN 尚未填入真實值（請編輯 .dev.vars）。'));
     process.exit(1);
   }
 
