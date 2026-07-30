@@ -78,7 +78,7 @@ export async function fetchRecentMedia(
   client: MetaClientType,
   instagramAccountId: string,
   platform: 'instagram' | 'facebook' = 'instagram',
-): Promise<{ ok: boolean; items: RawMediaItem[]; status: number; reason?: string }> {
+): Promise<{ ok: boolean; items: RawMediaItem[]; status: number; reason?: string; detail?: string }> {
   if (platform === 'facebook') {
     const res = await client.get<{
       data?: { id: string; message?: string; permalink_url?: string; created_time?: string; full_picture?: string }[];
@@ -89,6 +89,9 @@ export async function fetchRecentMedia(
         items: [],
         status: res.status,
         reason: res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error'),
+        detail: res.failure?.metaErrorMessage
+          ? `(code ${res.failure?.metaErrorCode ?? '?'}) ${res.failure.metaErrorMessage}`
+          : undefined,
       };
     }
     const items: RawMediaItem[] = (res.data?.data ?? []).map((p) => ({
@@ -110,6 +113,9 @@ export async function fetchRecentMedia(
       items: [],
       status: res.status,
       reason: res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error'),
+      detail: res.failure?.metaErrorMessage
+        ? `(code ${res.failure?.metaErrorCode ?? '?'}) ${res.failure.metaErrorMessage}`
+        : undefined,
     };
   }
   return { ok: true, items: res.data?.data ?? [], status: res.status };
@@ -150,7 +156,11 @@ export async function ensureAccountRegistered(
     const reason = res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error');
     const tokenName =
       platform === 'facebook' ? 'FACEBOOK_PAGE_ACCESS_TOKEN' : 'INSTAGRAM_ACCOUNT_ACCESS_TOKEN';
-    return `自動註冊${platform === 'facebook' ? ' Facebook 粉專' : ' Instagram 帳號'}失敗 (HTTP ${res.status}, ${reason})——請確認 ${tokenName} 是否有效`;
+    // 附上 Meta 的原始錯誤碼與訊息，否則「bad_request」之類的粗分類難以除錯。
+    const detail = res.failure?.metaErrorMessage
+      ? `｜Meta：(code ${res.failure?.metaErrorCode ?? '?'}) ${res.failure.metaErrorMessage}`
+      : '';
+    return `自動註冊${platform === 'facebook' ? ' Facebook 粉專' : ' Instagram 帳號'}失敗 (HTTP ${res.status}, ${reason})${detail}——請確認 ${tokenName} 是否有效`;
   }
   await db
     .insert(instagramAccounts)
@@ -204,7 +214,7 @@ export async function runScheduledSync(env: AppBindings): Promise<SyncSummary> {
     const res = await fetchRecentMedia(client, account.instagramAccountId, platform);
     if (!res.ok) {
       summary.errors.push(
-        `account ${account.instagramAccountId}: 抓取媒體失敗 (HTTP ${res.status}, ${res.reason})`,
+        `account ${account.instagramAccountId}: 抓取媒體失敗 (HTTP ${res.status}, ${res.reason})${res.detail ? `｜Meta：${res.detail}` : ''}`,
       );
       continue;
     }
