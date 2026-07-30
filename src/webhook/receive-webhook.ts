@@ -8,11 +8,12 @@ import { createDb } from '../database/client';
 import { webhookEvents } from '../database/schema';
 import { createLogger } from '../monitoring/logger';
 import { enqueueCommentEvent } from '../queue/producer';
-import { deriveEventKey, extractCommentEvents } from './event-parser';
+import { deriveEventKey, extractCommentEvents, extractFacebookCommentEvents } from './event-parser';
 import { verifyWebhookSignature } from './signature';
 
 export async function handleWebhookReceive(
   c: Context<{ Bindings: AppBindings }>,
+  platform: 'instagram' | 'facebook' = 'instagram',
 ): Promise<Response> {
   const logger = createLogger(c.env.LOG_LEVEL as never);
   const rawBody = await c.req.arrayBuffer();
@@ -32,7 +33,8 @@ export async function handleWebhookReceive(
     return c.text('bad request', 400);
   }
 
-  const events = extractCommentEvents(payload);
+  const events =
+    platform === 'facebook' ? extractFacebookCommentEvents(payload) : extractCommentEvents(payload);
   const db = createDb(c.env.DB);
 
   for (const ev of events) {
@@ -84,6 +86,7 @@ export async function handleWebhookReceive(
       instagramAccountId: ev.instagramAccountId,
       instagramMediaId: ev.instagramMediaId,
       instagramCommentId: ev.instagramCommentId,
+      platform,
     });
   }
 

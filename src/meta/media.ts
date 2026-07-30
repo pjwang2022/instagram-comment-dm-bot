@@ -26,6 +26,7 @@ export async function syncMediaItems(
   db: SchemaDb,
   accountInternalId: string,
   items: RawMediaItem[],
+  platform: 'instagram' | 'facebook' = 'instagram',
 ): Promise<{ inserted: number; updated: number }> {
   let inserted = 0;
   let updated = 0;
@@ -54,6 +55,7 @@ export async function syncMediaItems(
     } else {
       await db.insert(instagramMedia).values({
         id: crypto.randomUUID(),
+        platform,
         instagramAccountId: accountInternalId,
         instagramMediaId: item.id,
         mediaType: item.media_type ?? 'UNKNOWN',
@@ -70,11 +72,36 @@ export async function syncMediaItems(
   return { inserted, updated };
 }
 
-// 從 Meta 抓媒體清單（GET /{ig-account-id}/media）。
+// 從 Meta 抓媒體清單：IG 用 GET /{account-id}/media；FB 粉專用 GET /{page-id}/posts，
+// 並把 FB 欄位（message/permalink_url/created_time/full_picture）映射成統一的 RawMediaItem。
 export async function fetchRecentMedia(
   client: MetaClientType,
   instagramAccountId: string,
+  platform: 'instagram' | 'facebook' = 'instagram',
 ): Promise<{ ok: boolean; items: RawMediaItem[]; status: number; reason?: string }> {
+  if (platform === 'facebook') {
+    const res = await client.get<{
+      data?: { id: string; message?: string; permalink_url?: string; created_time?: string; full_picture?: string }[];
+    }>(`${instagramAccountId}/posts`, { fields: 'id,message,permalink_url,created_time,full_picture' });
+    if (!res.ok) {
+      return {
+        ok: false,
+        items: [],
+        status: res.status,
+        reason: res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error'),
+      };
+    }
+    const items: RawMediaItem[] = (res.data?.data ?? []).map((p) => ({
+      id: p.id,
+      media_type: 'POST',
+      caption: p.message,
+      thumbnail_url: p.full_picture,
+      permalink: p.permalink_url,
+      timestamp: p.created_time,
+    }));
+    return { ok: true, items, status: res.status };
+  }
+
   const fields = 'id,media_type,caption,thumbnail_url,media_url,permalink,timestamp';
   const res = await client.get<{ data?: RawMediaItem[] }>(`${instagramAccountId}/media`, { fields });
   if (!res.ok) {
@@ -95,33 +122,44 @@ export interface SyncSummary {
   errors: string[];
 }
 
-// 帳號自動註冊：instagram_accounts 為空時，用 access token 打 GET /me 取得帳號
-// 資訊並寫入。token 本身就足以識別帳號，使用者不需另外提供帳號 ID。
+// 帳號自動註冊：該平台尚無帳號資料列時，用 access token 打 GET /me 取得帳號
+// 資訊並寫入。token 本身就足以識別帳號，使用者不需另外提供帳號/粉專 ID。
 // 回傳 null 表示成功或不需註冊；否則回傳錯誤描述。
 export async function ensureAccountRegistered(
   db: SchemaDb,
   client: MetaClientType,
+  platform: 'instagram' | 'facebook' = 'instagram',
 ): Promise<string | null> {
-  const existing = await db.select().from(instagramAccounts).limit(1);
+  const existing = await db
+    .select()
+    .from(instagramAccounts)
+    .where(eq(instagramAccounts.platform, platform))
+    .limit(1);
   if (existing.length > 0) return null;
 
+  const fields =
+    platform === 'facebook' ? 'id,name' : 'id,username,account_type,profile_picture_url';
   const res = await client.get<{
     id?: string;
     username?: string;
+    name?: string;
     account_type?: string;
     profile_picture_url?: string;
-  }>('me', { fields: 'id,username,account_type,profile_picture_url' });
+  }>('me', { fields });
   if (!res.ok || !res.data?.id) {
     const reason = res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error');
-    return `自動註冊 Instagram 帳號失敗 (HTTP ${res.status}, ${reason})——請確認 INSTAGRAM_ACCOUNT_ACCESS_TOKEN 是否有效`;
+    const tokenName =
+      platform === 'facebook' ? 'FACEBOOK_PAGE_ACCESS_TOKEN' : 'INSTAGRAM_ACCOUNT_ACCESS_TOKEN';
+    return `自動註冊${platform === 'facebook' ? ' Facebook 粉專' : ' Instagram 帳號'}失敗 (HTTP ${res.status}, ${reason})——請確認 ${tokenName} 是否有效`;
   }
   await db
     .insert(instagramAccounts)
     .values({
       id: crypto.randomUUID(),
+      platform,
       instagramAccountId: res.data.id,
-      username: res.data.username ?? null,
-      accountType: res.data.account_type ?? null,
+      username: res.data.username ?? res.data.name ?? null,
+      accountType: res.data.account_type ?? (platform === 'facebook' ? 'PAGE' : null),
       profilePictureUrl: res.data.profile_picture_url ?? null,
     })
     .onConflictDoNothing();
@@ -131,29 +169,46 @@ export async function ensureAccountRegistered(
 // 完整的同步流程（手動 API 與 cron 共用）：對每個帳號抓媒體並 upsert。
 export async function runScheduledSync(env: AppBindings): Promise<SyncSummary> {
   const db = createDb(env.DB);
-  const client = new MetaClient({
+  const igClient = new MetaClient({
     accessToken: env.INSTAGRAM_ACCOUNT_ACCESS_TOKEN,
     graphApiVersion: env.META_GRAPH_API_VERSION,
     baseUrl: env.META_BASE_URL || undefined,
   });
+  const fbClient = env.FACEBOOK_PAGE_ACCESS_TOKEN
+    ? new MetaClient({
+        accessToken: env.FACEBOOK_PAGE_ACCESS_TOKEN,
+        graphApiVersion: env.META_GRAPH_API_VERSION,
+        baseUrl: 'https://graph.facebook.com',
+      })
+    : null;
 
-  const registerError = await ensureAccountRegistered(db, client);
-  if (registerError) {
-    return { accounts: 0, inserted: 0, updated: 0, errors: [registerError] };
+  const summary: SyncSummary = { accounts: 0, inserted: 0, updated: 0, errors: [] };
+
+  const registerError = await ensureAccountRegistered(db, igClient, 'instagram');
+  if (registerError) summary.errors.push(registerError);
+  if (fbClient) {
+    const fbRegisterError = await ensureAccountRegistered(db, fbClient, 'facebook');
+    if (fbRegisterError) summary.errors.push(fbRegisterError);
   }
 
   const accounts = await db.select().from(instagramAccounts);
-  const summary: SyncSummary = { accounts: accounts.length, inserted: 0, updated: 0, errors: [] };
+  summary.accounts = accounts.length;
 
   for (const account of accounts) {
-    const res = await fetchRecentMedia(client, account.instagramAccountId);
+    const platform = (account.platform ?? 'instagram') as 'instagram' | 'facebook';
+    const client = platform === 'facebook' ? fbClient : igClient;
+    if (!client) {
+      summary.errors.push(`account ${account.instagramAccountId}: 未設定 FACEBOOK_PAGE_ACCESS_TOKEN，略過同步`);
+      continue;
+    }
+    const res = await fetchRecentMedia(client, account.instagramAccountId, platform);
     if (!res.ok) {
       summary.errors.push(
         `account ${account.instagramAccountId}: 抓取媒體失敗 (HTTP ${res.status}, ${res.reason})`,
       );
       continue;
     }
-    const counts = await syncMediaItems(db, account.id, res.items);
+    const counts = await syncMediaItems(db, account.id, res.items, platform);
     summary.inserted += counts.inserted;
     summary.updated += counts.updated;
   }

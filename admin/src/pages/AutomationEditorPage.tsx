@@ -12,6 +12,7 @@ interface AutomationDetail {
     name: string;
     status: string;
     applyScope?: string;
+    platform?: string;
     matchType: MatchType;
     publicReplyEnabled: number;
     privateReplyEnabled: number;
@@ -44,6 +45,7 @@ export function AutomationEditorPage() {
   const [applyScope, setApplyScope] = useState<string>(
     mediaId ? 'media' : (scopeParam ?? 'next_post'),
   );
+  const [platform, setPlatform] = useState<string>(searchParams.get('platform') ?? 'instagram');
 
   const [name, setName] = useState('');
   const [matchType, setMatchType] = useState<MatchType>('contains_any');
@@ -83,6 +85,7 @@ export function AutomationEditorPage() {
       setDailyLimit(d.automation.dailyLimit != null ? String(d.automation.dailyLimit) : '');
       setStatus(d.automation.status);
       setApplyScope(d.automation.applyScope ?? 'media');
+      setPlatform(d.automation.platform ?? 'instagram');
     } catch (e) {
       if ((e as ApiError).status === 401) navigate('/login');
       else setError((e as ApiError).message);
@@ -104,7 +107,7 @@ export function AutomationEditorPage() {
 
   function payload() {
     return {
-      ...(mediaId ? { instagramMediaId: mediaId } : { applyScope }),
+      ...(mediaId ? { instagramMediaId: mediaId } : { applyScope, platform }),
       name: name.trim(),
       matchType,
       keywords: matchType === 'all_comments' ? [] : keywords,
@@ -228,8 +231,25 @@ export function AutomationEditorPage() {
           </p>
         ) : applyScope === 'account_default' ? (
           <p className="page-subtitle">
-            沒有專屬自動化的貼文都會套用這組設定（全帳號僅能有一組）。個別貼文另外設定的自動化優先於此預設。
+            沒有專屬自動化的貼文都會套用這組設定（每個平台各一組）。個別貼文另外設定的自動化優先於此預設。
           </p>
+        ) : null}
+
+        {applyScope !== 'media' && !savedId ? (
+          <div className="form-field" style={{ maxWidth: 280 }}>
+            <label className="label" htmlFor="platform">
+              平台
+            </label>
+            <select
+              id="platform"
+              className="input"
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+            >
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook 粉絲專頁</option>
+            </select>
+          </div>
         ) : null}
 
         {error ? <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div> : null}

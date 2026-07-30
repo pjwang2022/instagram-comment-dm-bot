@@ -35,39 +35,52 @@ export type EngineOutcome =
   | { kind: 'completed'; runId: string; publicReplyStatus: string; privateReplyStatus: string }
   | { kind: 'retry'; delaySeconds: number | null; runId: string; reason: string };
 
+export type Platform = 'instagram' | 'facebook';
+
 // 向 Meta 補抓單篇貼文資訊並寫入 instagram_media（本地尚未同步到的新貼文）。
+// IG 與 FB 的欄位名稱不同（caption/message、permalink/permalink_url…），在此統一映射。
 async function discoverMedia(
   db: SchemaDb,
   metaClient: MetaClient,
   instagramMediaId: string,
+  platform: Platform,
 ): Promise<typeof instagramMedia.$inferSelect | null> {
-  const account = (await db.select().from(instagramAccounts).limit(1))[0];
+  const account = (
+    await db.select().from(instagramAccounts).where(eq(instagramAccounts.platform, platform)).limit(1)
+  )[0];
   if (!account) return null;
 
+  const fields =
+    platform === 'facebook'
+      ? 'id,message,permalink_url,created_time,full_picture'
+      : 'id,media_type,caption,thumbnail_url,media_url,permalink,timestamp';
   const res = await metaClient.get<{
     id?: string;
     media_type?: string;
     caption?: string;
+    message?: string;
     thumbnail_url?: string;
     media_url?: string;
+    full_picture?: string;
     permalink?: string;
+    permalink_url?: string;
     timestamp?: string;
-  }>(instagramMediaId, {
-    fields: 'id,media_type,caption,thumbnail_url,media_url,permalink,timestamp',
-  });
+    created_time?: string;
+  }>(instagramMediaId, { fields });
   if (!res.ok || !res.data?.id) return null;
 
   await db
     .insert(instagramMedia)
     .values({
       id: crypto.randomUUID(),
+      platform,
       instagramAccountId: account.id,
       instagramMediaId: res.data.id,
-      mediaType: res.data.media_type ?? 'UNKNOWN',
-      caption: res.data.caption ?? null,
-      thumbnailUrl: res.data.thumbnail_url ?? res.data.media_url ?? null,
-      permalink: res.data.permalink ?? null,
-      publishedAt: res.data.timestamp ?? null,
+      mediaType: platform === 'facebook' ? 'POST' : (res.data.media_type ?? 'UNKNOWN'),
+      caption: res.data.caption ?? res.data.message ?? null,
+      thumbnailUrl: res.data.thumbnail_url ?? res.data.media_url ?? res.data.full_picture ?? null,
+      permalink: res.data.permalink ?? res.data.permalink_url ?? null,
+      publishedAt: res.data.timestamp ?? res.data.created_time ?? null,
       lastSyncedAt: new Date().toISOString(),
     })
     .onConflictDoNothing();
@@ -82,6 +95,9 @@ async function discoverMedia(
 export interface EngineDeps {
   db: SchemaDb;
   metaClient: MetaClient;
+  // Facebook 粉專用的 client（graph.facebook.com + Page Access Token）。
+  // 未設定 FACEBOOK_PAGE_ACCESS_TOKEN 時為 undefined，FB 事件會以 skipped 處理。
+  fbMetaClient?: MetaClient;
 }
 
 async function recordAttempt(
@@ -110,7 +126,8 @@ export async function processCommentEvent(
   deps: EngineDeps,
   message: CommentEventMessage,
 ): Promise<EngineOutcome> {
-  const { db, metaClient } = deps;
+  const { db } = deps;
+  const msgPlatform: Platform = message.platform ?? 'instagram';
 
   // 1. Webhook event + 留言內容
   const eventRows = await db
@@ -144,11 +161,16 @@ export async function processCommentEvent(
     .where(eq(instagramMedia.instagramMediaId, message.instagramMediaId))
     .limit(1);
   if (mediaRows.length === 0) {
-    const discovered = await discoverMedia(db, metaClient, message.instagramMediaId);
+    const discoveryClient = msgPlatform === 'facebook' ? deps.fbMetaClient : deps.metaClient;
+    if (!discoveryClient) return { kind: 'skipped', reason: 'facebook_not_configured' };
+    const discovered = await discoverMedia(db, discoveryClient, message.instagramMediaId, msgPlatform);
     if (!discovered) return { kind: 'skipped', reason: 'media_not_found' };
     mediaRows = [discovered];
   }
   const media = mediaRows[0];
+  const platform = (media.platform ?? 'instagram') as Platform;
+  const metaClient = platform === 'facebook' ? deps.fbMetaClient : deps.metaClient;
+  if (!metaClient) return { kind: 'skipped', reason: 'facebook_not_configured' };
 
   // 4. 帳號（停用 / 熔斷）
   const accountRows = await db
@@ -218,7 +240,7 @@ export async function processCommentEvent(
       if (!chosen) {
         publicStatus = 'skipped';
       } else {
-        const res = await replyToComment(metaClient, comment.instagramCommentId, chosen.message);
+        const res = await replyToComment(metaClient, comment.instagramCommentId, chosen.message, platform);
         await recordAttempt(db, run.id, 'public_reply', attemptNumber, res);
         if (res.ok) {
           publicStatus = 'success';

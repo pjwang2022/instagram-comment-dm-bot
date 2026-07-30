@@ -6,6 +6,8 @@ export interface CommentEventMessage {
   instagramAccountId: string;
   instagramMediaId: string;
   instagramCommentId: string;
+  // 省略時視為 'instagram'（向後相容部署前已入列的訊息）。
+  platform?: 'instagram' | 'facebook';
 }
 
 export async function enqueueCommentEvent(

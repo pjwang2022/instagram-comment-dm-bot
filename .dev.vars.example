@@ -14,5 +14,9 @@ WEBHOOK_VERIFY_TOKEN=
 # Instagram Professional Account 的 Access Token。
 INSTAGRAM_ACCOUNT_ACCESS_TOKEN=
 
+# （選配）Facebook 粉絲專頁的 Page Access Token——要啟用 FB 粉專留言自動化才需要。
+# 未設定時 FB 相關功能自動停用，不影響 Instagram。
+# FACEBOOK_PAGE_ACCESS_TOKEN=
+
 # 管理者 Session 簽章用的隨機字串（建議 32 bytes 以上的隨機值）。
 ADMIN_SESSION_SECRET=

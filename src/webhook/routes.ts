@@ -13,5 +13,9 @@ export function createWebhookRoutes() {
   // POST：事件接收（驗簽 → 冪等儲存 → 入列 → 200）。
   webhook.post('/meta/instagram', (c) => handleWebhookReceive(c));
 
+  // Facebook 粉專留言（Messenger 產品的 Page webhook，訂閱 feed 欄位）。
+  webhook.get('/meta/facebook', (c) => handleWebhookVerification(c));
+  webhook.post('/meta/facebook', (c) => handleWebhookReceive(c, 'facebook'));
+
   return webhook;
 }

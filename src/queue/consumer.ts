@@ -16,6 +16,14 @@ export async function consumeCommentEvents(
       accessToken: env.INSTAGRAM_ACCOUNT_ACCESS_TOKEN,
       graphApiVersion: env.META_GRAPH_API_VERSION,
     }),
+    // FB 粉專（選配）：有設定 Page token 才啟用。
+    fbMetaClient: env.FACEBOOK_PAGE_ACCESS_TOKEN
+      ? new MetaClient({
+          accessToken: env.FACEBOOK_PAGE_ACCESS_TOKEN,
+          graphApiVersion: env.META_GRAPH_API_VERSION,
+          baseUrl: 'https://graph.facebook.com',
+        })
+      : undefined,
   };
 
   for (const msg of batch.messages) {

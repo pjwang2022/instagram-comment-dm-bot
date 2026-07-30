@@ -30,6 +30,8 @@ export const systemSettings = sqliteTable('system_settings', {
 
 export const instagramAccounts = sqliteTable('instagram_accounts', {
   id: text('id').primaryKey(),
+  // instagram＝IG 專業帳號；facebook＝FB 粉絲專頁（instagram_account_id 存 Page ID）。
+  platform: text('platform').notNull().default('instagram'),
   instagramAccountId: text('instagram_account_id').notNull().unique(),
   username: text('username'),
   profilePictureUrl: text('profile_picture_url'),
@@ -47,6 +49,8 @@ export const instagramMedia = sqliteTable(
   'instagram_media',
   {
     id: text('id').primaryKey(),
+    // instagram＝IG 貼文/Reels；facebook＝FB 粉專貼文（instagram_media_id 存 Post ID）。
+    platform: text('platform').notNull().default('instagram'),
     instagramAccountId: text('instagram_account_id')
       .notNull()
       .references(() => instagramAccounts.id),
@@ -72,6 +76,8 @@ export const automations = sqliteTable('automations', {
     .references(() => instagramMedia.id),
   // media＝綁定單篇貼文（預設）；next_post＝綁定下一篇新貼文；account_default＝所有無專屬自動化的貼文。
   applyScope: text('apply_scope').notNull().default('media'),
+  // 自動化服務的平台（instagram/facebook）；next_post/account_default 依此只套用同平台貼文。
+  platform: text('platform').notNull().default('instagram'),
   name: text('name').notNull(),
   status: text('status').notNull().default('draft'),
   matchType: text('match_type').notNull().default('contains_any'),
