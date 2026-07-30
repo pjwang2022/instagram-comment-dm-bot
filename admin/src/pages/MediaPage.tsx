@@ -85,6 +85,8 @@ export function MediaPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [syncErrors, setSyncErrors] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -111,8 +113,18 @@ export function MediaPage() {
   async function sync() {
     setSyncing(true);
     setError(null);
+    setSyncNotice(null);
+    setSyncErrors([]);
     try {
-      await apiPost('/api/admin/media/sync', {});
+      const summary = await apiPost<{
+        accounts: number;
+        inserted: number;
+        updated: number;
+        errors: string[];
+      }>('/api/admin/media/sync', {});
+      setSyncNotice(`同步完成：${summary.accounts} 個帳號｜新增 ${summary.inserted}｜更新 ${summary.updated}`);
+      // 同步的部分失敗（例如某平台 token 無效）不會中斷整體流程，但必須讓使用者看到。
+      setSyncErrors(summary.errors ?? []);
       await load();
     } catch (e) {
       setError((e as ApiError).message);
@@ -143,6 +155,14 @@ export function MediaPage() {
         </div>
 
         {error ? <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div> : null}
+        {syncNotice ? (
+          <div className="alert alert-success" style={{ marginBottom: 'var(--space-2)' }}>{syncNotice}</div>
+        ) : null}
+        {syncErrors.map((e, i) => (
+          <div key={i} className="alert alert-danger" style={{ marginBottom: 'var(--space-2)' }}>
+            {e}
+          </div>
+        ))}
 
         <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
           <div className="status-line" style={{ justifyContent: 'space-between' }}>
