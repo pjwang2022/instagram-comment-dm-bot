@@ -8,7 +8,12 @@
 //    「已上線但尚無資料表」的空窗，屬可接受範圍）。
 import { execSync } from 'node:child_process';
 
-const QUEUE_NAME = 'ig-comment-events';
+// 支援部署到指定環境：npm run deploy -- --env staging
+// （staging 使用獨立的 Worker/D1/Queue/secrets，與正式環境零共用。）
+const envIdx = process.argv.indexOf('--env');
+const targetEnv = envIdx !== -1 ? process.argv[envIdx + 1] : null;
+const envFlag = targetEnv ? ` --env ${targetEnv}` : '';
+const QUEUE_NAME = targetEnv ? `ig-comment-events-${targetEnv}` : 'ig-comment-events';
 
 function run(cmd) {
   console.log(`\n$ ${cmd}`);
@@ -26,7 +31,7 @@ try {
 
 run('npm ci --prefix admin'); // 確保 admin 依賴存在（Workers Builds 等環境只裝根目錄依賴）
 run('npm run build --prefix admin');
-run('npx wrangler deploy');
-run('npx wrangler d1 migrations apply DB --remote');
+run(`npx wrangler deploy${envFlag}`);
+run(`npx wrangler d1 migrations apply DB --remote${envFlag}`);
 
 console.log('\n部署完成。首次部署請立刻打開 https://<你的 Worker 網址>/admin 建立管理者帳號。');

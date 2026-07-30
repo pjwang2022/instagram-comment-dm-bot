@@ -73,5 +73,58 @@
       "0 20 * * *",
       "0 0 * * *"
     ]
+  },
+  // 測試環境：`npm run deploy -- --env staging`。
+  // 獨立的 Worker／D1／Queue／secrets（secrets 要用 `wrangler secret put <NAME> --env staging`
+  // 另外設定），與正式環境零共用；cron 停用（測試用手動同步即可）。
+  "env": {
+    "staging": {
+      "name": "ig-comment-dm-bot-staging",
+      "assets": {
+        "directory": "./admin/dist",
+        "binding": "ASSETS"
+      },
+      "vars": {
+        "META_GRAPH_API_VERSION": "v21.0",
+        "APP_ENV": "staging",
+        "LOG_LEVEL": "debug"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ig-comment-dm-db-staging",
+          "migrations_dir": "drizzle/migrations"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "ADMIN_RATE_LIMITER",
+          "namespace_id": "1001",
+          "simple": {
+            "limit": 120,
+            "period": 60
+          }
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "COMMENT_QUEUE",
+            "queue": "ig-comment-events-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "ig-comment-events-staging",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 3
+          }
+        ]
+      },
+      "triggers": {
+        "crons": []
+      }
+    }
   }
 }
