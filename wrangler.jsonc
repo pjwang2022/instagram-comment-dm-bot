@@ -1,5 +1,8 @@
-// wrangler.jsonc 範本。複製這個檔案為 wrangler.jsonc（該檔名已被 .gitignore 排除，
-// 不會被提交），把 <TODO:...> 與 <D1_DATABASE_ID> 換成你自己的部署值。
+// 本檔以 placeholder 預設值提交進版控——「Deploy to Cloudflare」按鈕需要它來
+// 自動開通資源（D1、Queues），部署流程會在你複製出去的 repo 裡改寫資源 ID。
+// 手動部署者：直接把 <TODO:...> 與 <D1_DATABASE_ID> 換成自己的值。若你會對本
+// repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，
+// 避免把個人部署值提交上去。
 // 機密（META_APP_SECRET 等）不放這裡：本機開發用 .dev.vars（見 .dev.vars.example），
 // 正式環境用 `wrangler secret put <NAME>` 個別設定。
 {

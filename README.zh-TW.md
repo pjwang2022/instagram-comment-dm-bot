@@ -8,6 +8,10 @@
 
 為「單一管理者管理自己的 Instagram 專業帳號」而設計。不依賴第三方 SaaS、沒有按訊息計費：你自己的 Meta App、你自己的 Cloudflare 帳號、你自己的資料。
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/pjwang2022/instagram-comment-dm-bot)
+
+一鍵完成：把本 repo 複製到你的 GitHub 帳號、在你的 Cloudflare 帳號自動開通 D1 與 Queue（Queues 需要 Workers Paid 方案）、依 `.dev.vars.example` 提示你填入 secrets、並設好 push 即自動部署。之後仍需完成 [Meta 端設定](#2-meta-端)與[管理者帳號](#1-cloudflare-端)。
+
 ## 功能
 
 - **每篇貼文獨立的關鍵字自動化** —— 支援 `contains_any`／`exact_any`／`all_comments` 比對模式，含文字正規化與排除條件。
@@ -53,9 +57,10 @@ npm ci && npm ci --prefix admin
 npx wrangler d1 create ig-comment-dm-db      # 記下輸出的 database_id
 npx wrangler queues create ig-comment-events
 
-# 設定檔（wrangler.jsonc 已被 gitignore——它存放你的部署專屬值）
-cp wrangler.jsonc.example wrangler.jsonc
+# 設定：直接編輯 wrangler.jsonc
 #   → 填入 database_id、INSTAGRAM_ACCOUNT_ID、APP_BASE_URL、ADMIN_EMAIL
+# 若你之後會貢獻程式碼回來，先讓個人部署值不會被提交：
+git update-index --skip-worktree wrangler.jsonc
 
 # 正式環境機密。每個 secret 設定後約 30 秒才生效。
 npx wrangler secret put META_APP_SECRET
@@ -64,16 +69,12 @@ npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32 bytes 以上隨機值
 npx wrangler secret put TOKEN_ENCRYPTION_KEY     # 32 bytes 以上隨機值
 
-# 資料庫 schema
-npx wrangler d1 migrations apply ig-comment-dm-db --remote
+# 部署（建置管理後台、套用 D1 migrations、部署 Worker 一次完成）
+npm run deploy
 
 # 管理者帳號（互動式；產出 admin-insert.sql——雜湊含 `$`，務必用 --file）
 npm run create-admin
 npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
-
-# 部署
-npm run build --prefix admin
-npx wrangler deploy
 ```
 
 ### 2. Meta 端
@@ -113,7 +114,7 @@ npm run lint && npm run typecheck
 
 ## 安全性說明
 
-所有機密只存在 Cloudflare Secrets（正式環境）或 `.dev.vars`（本機，已被 gitignore）——永不寫入被 git 追蹤的檔案。`wrangler.jsonc` 也被 gitignore，因為它含部署專屬值；變更 bindings 時請同步更新 `wrangler.jsonc.example`。
+所有機密只存在 Cloudflare Secrets（正式環境）或 `.dev.vars`（本機，已被 gitignore）——永不寫入被 git 追蹤的檔案。`wrangler.jsonc` 以 placeholder 值提交進版控（Deploy 按鈕需要它）；若你會貢獻程式碼回來，請先執行 `git update-index --skip-worktree wrangler.jsonc`，確保個人部署值永不進 commit。
 
 ## License
 

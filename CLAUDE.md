@@ -9,14 +9,14 @@
 ## Clone 後初始化（新環境必做）
 
 1. 安裝依賴：`npm ci` 與 `npm ci --prefix admin`。
-2. `cp wrangler.jsonc.example wrangler.jsonc`（`wrangler.jsonc` 已被 `.gitignore` 排除，含部署專屬值，不進版控）。以 `wrangler d1 create ig-comment-dm-db`、`wrangler queues create ig-comment-events` 建立 Cloudflare 資源後，回填 `database_id` 與各 `<TODO:...>` 欄位（`INSTAGRAM_ACCOUNT_ID`／`APP_BASE_URL`／`ADMIN_EMAIL`）。
+2. 直接編輯 `wrangler.jsonc`（版控中的內容是 placeholder；「Deploy to Cloudflare」按鈕依賴此檔存在）。以 `wrangler d1 create ig-comment-dm-db`、`wrangler queues create ig-comment-events` 建立 Cloudflare 資源後，回填 `database_id` 與各 `<TODO:...>` 欄位（`INSTAGRAM_ACCOUNT_ID`／`APP_BASE_URL`／`ADMIN_EMAIL`），並立即執行 `git update-index --skip-worktree wrangler.jsonc`，避免個人部署值被提交。
 3. `cp .dev.vars.example .dev.vars`，填入本機開發用機密（同樣不進版控）。
 4. 正式環境機密逐一 `wrangler secret put <NAME>`：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`、`TOKEN_ENCRYPTION_KEY`。設定後約 30 秒才生效，勿立即以舊回應誤判。
-5. 套用資料庫 migrations：`wrangler d1 migrations apply ig-comment-dm-db --local`（本機）或 `--remote`（正式）。
+5. 套用資料庫 migrations：`wrangler d1 migrations apply ig-comment-dm-db --local`（本機）；正式環境改用 `npm run deploy`（一次完成 admin 建置、`--remote` migrations 與部署）。
 6. 建立管理者帳號：`npm run create-admin`（互動式，產出 `admin-insert.sql`），再依畫面指示用 `npx wrangler d1 execute DB --local --file=admin-insert.sql`（正式改 `--remote`）套用，套用後刪除該檔。務必用 `--file`、不要貼進 `--command`（密碼雜湊含 `$`，會被 shell 展開打爛）。
 7. 驗證環境：`npm run check-meta`（Meta token 健康檢查）→ `npm run test` → `npm run dev`。
 
-規則：機密一律走 `.dev.vars`（本機）或 `wrangler secret put`（正式），永不寫入任何被 git 追蹤的檔案。若 `wrangler.jsonc` 的結構（bindings、queues、crons 等）有變更，必須同步更新 `wrangler.jsonc.example`——CI 的 build 步驟依賴該範本。
+規則：機密一律走 `.dev.vars`（本機）或 `wrangler secret put`（正式），永不寫入任何被 git 追蹤的檔案。`wrangler.jsonc` 在版控中只允許 placeholder 值——本機真實部署值以 `git update-index --skip-worktree wrangler.jsonc` 保護（意味著 git 不會回報此檔的變更；要提交結構性修改前，先 `git update-index --no-skip-worktree wrangler.jsonc`，確認 diff 只含 placeholder 後再提交，完成後重新設回 skip-worktree）。
 
 ## Skill 路由
 

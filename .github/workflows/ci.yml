@@ -34,7 +34,4 @@ jobs:
         run: npm run typecheck
 
       - name: Build
-        # wrangler.jsonc 不進版控（含部署專屬值），CI 用範本跑 deploy --dry-run。
-        run: |
-          cp wrangler.jsonc.example wrangler.jsonc
-          npm run build
+        run: npm run build

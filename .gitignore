@@ -1,7 +1,6 @@
 .env
 .env.*
 .dev.vars
-wrangler.jsonc
 node_modules/
 .DS_Store
 dist/

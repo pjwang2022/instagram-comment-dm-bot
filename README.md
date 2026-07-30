@@ -8,6 +8,10 @@
 
 Built for a single admin managing their own Instagram Professional account. No third-party SaaS, no per-message fees: your Meta app, your Cloudflare account, your data.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/pjwang2022/instagram-comment-dm-bot)
+
+One click copies this repo to your GitHub account, provisions the D1 database and Queue in your Cloudflare account (Workers Paid plan required for Queues), prompts you for the secrets listed in `.dev.vars.example`, and sets up push-to-deploy. You still need the [Meta side setup](#2-meta-side) and an [admin account](#1-cloudflare-side) afterwards.
+
 ## Features
 
 - **Keyword automations per post** — `contains_any` / `exact_any` / `all_comments` matching with text normalization and exclusion rules.
@@ -53,9 +57,10 @@ npm ci && npm ci --prefix admin
 npx wrangler d1 create ig-comment-dm-db      # note the database_id it prints
 npx wrangler queues create ig-comment-events
 
-# Configure (wrangler.jsonc is gitignored — it holds your deployment-specific values)
-cp wrangler.jsonc.example wrangler.jsonc
+# Configure: edit wrangler.jsonc
 #   → fill in database_id, INSTAGRAM_ACCOUNT_ID, APP_BASE_URL, ADMIN_EMAIL
+# If you plan to contribute back, keep your personal values out of commits:
+git update-index --skip-worktree wrangler.jsonc
 
 # Secrets (production). Each takes ~30s to propagate after `put`.
 npx wrangler secret put META_APP_SECRET
@@ -64,16 +69,12 @@ npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
 npx wrangler secret put ADMIN_SESSION_SECRET     # 32+ random bytes
 npx wrangler secret put TOKEN_ENCRYPTION_KEY     # 32+ random bytes
 
-# Database schema
-npx wrangler d1 migrations apply ig-comment-dm-db --remote
+# Deploy (builds the admin SPA, applies D1 migrations, deploys the Worker)
+npm run deploy
 
 # Admin account (interactive; writes admin-insert.sql — the hash contains `$`, so always use --file)
 npm run create-admin
 npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
-
-# Deploy
-npm run build --prefix admin
-npx wrangler deploy
 ```
 
 ### 2. Meta side
@@ -113,7 +114,7 @@ Note: `wrangler dev` does not enforce every production Workers limit (e.g. the 1
 
 ## Security Notes
 
-All secrets live in Cloudflare Secrets (production) or `.dev.vars` (local, gitignored) — never in tracked files. `wrangler.jsonc` is also gitignored because it carries deployment-specific values; keep `wrangler.jsonc.example` in sync when you change bindings.
+All secrets live in Cloudflare Secrets (production) or `.dev.vars` (local, gitignored) — never in tracked files. `wrangler.jsonc` is tracked with placeholder values only (the Deploy button needs it); if you contribute back, use `git update-index --skip-worktree wrangler.jsonc` so your personal deployment values never end up in a commit.
 
 ## License
 
