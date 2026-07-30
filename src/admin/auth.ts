@@ -128,6 +128,18 @@ export function createAuthRoutes() {
     return c.json({ ok: true });
   });
 
+  // GET /api/admin/auth/me——回傳目前登入者的 Email（頁首顯示用）。
+  auth.get('/me', requireAdminAuth(), adminApiRateLimitMiddleware(), async (c) => {
+    const db = createDb(c.env.DB);
+    const rows = await db
+      .select({ email: adminUsers.email })
+      .from(adminUsers)
+      .where(eq(adminUsers.id, c.get('adminUserId')))
+      .limit(1);
+    if (!rows[0]) return c.json({ error: '未授權' }, 401);
+    return c.json({ email: rows[0].email });
+  });
+
   // POST /api/admin/auth/login
   // CSRF（Origin 驗證）→ 登入頻率限制 → 帳密驗證。登入用專屬的 login 限流（每 IP 15 分鐘），
   // 不套一般 admin-api 限流。

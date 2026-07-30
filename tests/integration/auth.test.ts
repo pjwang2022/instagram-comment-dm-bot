@@ -139,6 +139,31 @@ describe('protected routes and logout', () => {
   });
 });
 
+describe('GET /api/admin/auth/me', () => {
+  it('returns the logged-in admin email', async () => {
+    await seedAdmin('owner@example.com', 'correct-password-123');
+    const app = createApp();
+    const loginRes = await app.fetch(
+      loginRequest({ email: 'owner@example.com', password: 'correct-password-123' }),
+      env,
+    );
+    const cookie = (loginRes.headers.get('Set-Cookie') ?? '').split(';')[0];
+
+    const res = await app.fetch(
+      new Request('https://igbot.example.com/api/admin/auth/me', { headers: { Cookie: cookie } }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ email: 'owner@example.com' });
+  });
+
+  it('rejects the request without a session', async () => {
+    const app = createApp();
+    const res = await app.fetch(new Request('https://igbot.example.com/api/admin/auth/me'), env);
+    expect(res.status).toBe(401);
+  });
+});
+
 function setupRequest(body: object) {
   return new Request('https://igbot.example.com/api/admin/auth/setup', {
     method: 'POST',
