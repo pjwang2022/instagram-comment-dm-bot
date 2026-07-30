@@ -24,6 +24,7 @@ try {
   console.log(`Queue ${QUEUE_NAME} 已存在，略過建立。`);
 }
 
+run('npm ci --prefix admin'); // 確保 admin 依賴存在（Workers Builds 等環境只裝根目錄依賴）
 run('npm run build --prefix admin');
 run('npx wrangler deploy');
 run('npx wrangler d1 migrations apply DB --remote');

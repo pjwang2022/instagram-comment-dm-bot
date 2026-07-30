@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "build": "npm run build --prefix admin && wrangler deploy --dry-run",
+    "build": "npm ci --prefix admin && npm run build --prefix admin && wrangler deploy --dry-run",
     "deploy": "node scripts/deploy.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts/tsconfig.json && npm run typecheck --prefix admin",
