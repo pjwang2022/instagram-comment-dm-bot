@@ -21,8 +21,7 @@ Clicking the button will:
 
 After the first deploy, finish up in your own repo copy:
 
-- Edit `wrangler.jsonc` → replace the `<TODO:...>` values (`INSTAGRAM_ACCOUNT_ID`, `ADMIN_EMAIL`) and push — it redeploys automatically. How to obtain each value is explained in the comments right inside the file.
-- Complete the [Meta side setup](#2-meta-side) (webhook subscription + access token).
+- Complete the [Meta side setup](#2-meta-side) (webhook subscription + access token). No config file editing needed — the app discovers your Instagram account automatically from the access token.
 - Open `/admin` and [create your admin account](#3-create-the-admin-account) on the first-run setup page — do this right after deploying.
 
 Prefer doing everything by hand? Follow the full [Quick Start](#quick-start) below.
@@ -72,9 +71,8 @@ npm ci && npm ci --prefix admin
 npx wrangler d1 create ig-comment-dm-db      # note the database_id it prints
 npx wrangler queues create ig-comment-events
 
-# Configure: edit wrangler.jsonc
-#   → fill in database_id, INSTAGRAM_ACCOUNT_ID, ADMIN_EMAIL
-#   (how to obtain each value is explained in the comments inside wrangler.jsonc)
+# Configure: edit wrangler.jsonc — only one value to fill:
+#   → replace <D1_DATABASE_ID> with the database_id printed above
 # If you plan to contribute back, keep your personal values out of commits:
 git update-index --skip-worktree wrangler.jsonc
 
@@ -96,7 +94,7 @@ npm run deploy
    - Callback URL: `https://<your-domain>/api/webhooks/meta/instagram`
    - Verify token: the same value you stored as `META_VERIFY_TOKEN`
    - Subscribe to the **`comments`** field.
-4. App Review requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (contact email comes from `ADMIN_EMAIL`).
+4. App Review requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (the contact email shown is your admin account's email).
 
 ### 3. Create the admin account
 

@@ -1,7 +1,8 @@
-// 本檔以 placeholder 預設值提交進版控——「Deploy to Cloudflare」按鈕需要它來
-// 自動開通資源（D1、Queues），部署流程會在你複製出去的 repo 裡改寫資源 ID。
-// 手動部署者：直接把 <TODO:...> 與 <D1_DATABASE_ID> 換成自己的值。若你會對本
-// repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，
+// 本檔以預設值提交進版控——「Deploy to Cloudflare」按鈕需要它來自動開通資源
+//（D1、Queues），部署流程會在你複製出去的 repo 裡改寫資源 ID。
+// 一鍵部署的使用者不需要修改本檔的任何內容。
+// 手動部署者：只需把 <D1_DATABASE_ID> 換成 `wrangler d1 create` 印出的 ID。若你會
+// 對本 repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，
 // 避免把個人部署值提交上去。
 // 機密（META_APP_SECRET 等）不放這裡：本機開發用 .dev.vars（見 .dev.vars.example），
 // 正式環境用 `wrangler secret put <NAME>` 個別設定。
@@ -18,21 +19,13 @@
     "directory": "./admin/dist",
     "binding": "ASSETS"
   },
-  // 一般 Variables（非機密，見 spec.md 第 22 節）。正式部署前請把下列 <TODO:...>
-  // 換成實際值；本機開發時可在 .dev.vars 覆寫（見 .dev.vars.example）。
+  // 一般 Variables（非機密）。預設值即可直接使用；本機開發可在 .dev.vars 覆寫。
+  // 帳號 ID 與聯絡信箱都不需要設定：帳號由 access token 自動註冊（GET /me），
+  // 隱私頁聯絡信箱取自 /admin 首次設定建立的管理者 Email。
   "vars": {
-    // 串接前請對照 Meta 官方文件確認當下最新的 Graph API 版本號，不要沿用這裡的預設值。
+    // 串接前請對照 Meta 官方文件確認當下最新的 Graph API 版本號。
     "META_GRAPH_API_VERSION": "v21.0",
-    // Instagram 專業帳號的「數字 ID」（不是 @帳號名稱），格式類似 17841400000000000。
-    // 取得方式（擇一）：
-    //   a. 瀏覽器開 https://graph.instagram.com/me?fields=user_id,username&access_token=<你的 access token>
-    //      回傳 JSON 裡的 user_id 就是。
-    //   b. 本機執行 npm run check-meta（.dev.vars 填好 token 即可），會自動印出帳號 ID。
-    "INSTAGRAM_ACCOUNT_ID": "<TODO:填入 Instagram 帳號的數字 ID>",
     "APP_ENV": "production",
-    // 顯示在 /privacy 隱私政策頁上的聯絡信箱（Meta App 審核要求提供）。
-    // 與後台登入帳號無關——登入用的 Email 是在 /admin 首次設定表單建立的。
-    "ADMIN_EMAIL": "<TODO:填入公開的聯絡信箱>",
     "LOG_LEVEL": "info"
   },
   "d1_databases": [

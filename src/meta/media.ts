@@ -94,6 +94,39 @@ export interface SyncSummary {
   errors: string[];
 }
 
+// 帳號自動註冊：instagram_accounts 為空時，用 access token 打 GET /me 取得帳號
+// 資訊並寫入。token 本身就足以識別帳號，使用者不需另外提供帳號 ID。
+// 回傳 null 表示成功或不需註冊；否則回傳錯誤描述。
+export async function ensureAccountRegistered(
+  db: SchemaDb,
+  client: MetaClientType,
+): Promise<string | null> {
+  const existing = await db.select().from(instagramAccounts).limit(1);
+  if (existing.length > 0) return null;
+
+  const res = await client.get<{
+    id?: string;
+    username?: string;
+    account_type?: string;
+    profile_picture_url?: string;
+  }>('me', { fields: 'id,username,account_type,profile_picture_url' });
+  if (!res.ok || !res.data?.id) {
+    const reason = res.failure?.nonRetryableReason ?? (res.failure?.networkError ? 'network_error' : 'http_error');
+    return `自動註冊 Instagram 帳號失敗 (HTTP ${res.status}, ${reason})——請確認 INSTAGRAM_ACCESS_TOKEN 是否有效`;
+  }
+  await db
+    .insert(instagramAccounts)
+    .values({
+      id: crypto.randomUUID(),
+      instagramAccountId: res.data.id,
+      username: res.data.username ?? null,
+      accountType: res.data.account_type ?? null,
+      profilePictureUrl: res.data.profile_picture_url ?? null,
+    })
+    .onConflictDoNothing();
+  return null;
+}
+
 // 完整的同步流程（手動 API 與 cron 共用）：對每個帳號抓媒體並 upsert。
 export async function runScheduledSync(env: AppBindings): Promise<SyncSummary> {
   const db = createDb(env.DB);
@@ -102,6 +135,12 @@ export async function runScheduledSync(env: AppBindings): Promise<SyncSummary> {
     graphApiVersion: env.META_GRAPH_API_VERSION,
     baseUrl: env.META_BASE_URL || undefined,
   });
+
+  const registerError = await ensureAccountRegistered(db, client);
+  if (registerError) {
+    return { accounts: 0, inserted: 0, updated: 0, errors: [registerError] };
+  }
+
   const accounts = await db.select().from(instagramAccounts);
   const summary: SyncSummary = { accounts: accounts.length, inserted: 0, updated: 0, errors: [] };
 

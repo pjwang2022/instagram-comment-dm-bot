@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { createAdminRoutes } from './admin/routes';
+import { createDb } from './database/client';
+import { adminUsers } from './database/schema';
 import type { CommentEventMessage } from './queue/producer';
 import { createWebhookRoutes } from './webhook/routes';
 
@@ -19,9 +21,7 @@ export type AppBindings = {
   ADMIN_SESSION_SECRET: string;
   META_GRAPH_API_VERSION: string;
   META_BASE_URL?: string;
-  INSTAGRAM_ACCOUNT_ID: string;
   APP_ENV: string;
-  ADMIN_EMAIL: string;
   LOG_LEVEL: string;
 };
 
@@ -31,8 +31,16 @@ export function createApp() {
   app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
   // 隱私政策頁（Meta App 上線審核要求提供公開網址）。
-  app.get('/privacy', (c) =>
-    c.html(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>隱私政策 — Instagram Comment DM Bot</title><style>body{font-family:system-ui,-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;max-width:680px;margin:40px auto;padding:0 20px;line-height:1.7;color:#0f172a}h1{font-size:24px}h2{font-size:17px;margin-top:28px}p,li{font-size:15px;color:#334155}</style></head><body>
+  // 聯絡信箱直接取自管理者帳號（首次設定表單建立的 Email），不需額外設定。
+  app.get('/privacy', async (c) => {
+    let contactEmail = '（尚未設定）';
+    try {
+      const admins = await createDb(c.env.DB).select({ email: adminUsers.email }).from(adminUsers).limit(1);
+      if (admins[0]?.email) contactEmail = admins[0].email;
+    } catch {
+      // 資料庫尚未就緒時仍應能顯示隱私政策頁。
+    }
+    return c.html(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>隱私政策 — Instagram Comment DM Bot</title><style>body{font-family:system-ui,-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;max-width:680px;margin:40px auto;padding:0 20px;line-height:1.7;color:#0f172a}h1{font-size:24px}h2{font-size:17px;margin-top:28px}p,li{font-size:15px;color:#334155}</style></head><body>
 <h1>隱私政策</h1>
 <p>本服務（Instagram Comment DM Bot）為單一管理者自用的 Instagram 留言自動回覆工具。</p>
 <h2>資料的蒐集與使用</h2>
@@ -46,10 +54,10 @@ export function createApp() {
 <li>如希望刪除與您相關的紀錄，請透過下方聯絡方式提出，我們將於合理期間內刪除。</li>
 </ul>
 <h2>聯絡方式</h2>
-<p>Email：${c.env.ADMIN_EMAIL}</p>
+<p>Email：${contactEmail}</p>
 <p>更新日期：2026-07-29</p>
-</body></html>`),
-  );
+</body></html>`);
+  });
 
   app.route('/api/admin', createAdminRoutes());
   app.route('/api/webhooks', createWebhookRoutes());

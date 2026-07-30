@@ -21,8 +21,7 @@
 
 首次部署完成後，到你自己的 repo 收尾：
 
-- 編輯 `wrangler.jsonc` → 把 `<TODO:...>` 換成實際值（`INSTAGRAM_ACCOUNT_ID`、`ADMIN_EMAIL`）後 push，會自動重新部署。每個欄位怎麼取得，檔案內的註解都有逐一說明。
-- 完成 [Meta 端設定](#2-meta-端)（webhook 訂閱＋access token）。
+- 完成 [Meta 端設定](#2-meta-端)（webhook 訂閱＋access token）。不需要改任何設定檔——系統會用 access token 自動識別並註冊你的 Instagram 帳號。
 - 打開 `/admin`，在首次啟動設定頁[建立管理者帳號](#3-建立管理者帳號)——部署完請盡快做這步。
 
 想全程手動操作？請看下方完整的 [Quick Start](#quick-start)。
@@ -72,9 +71,8 @@ npm ci && npm ci --prefix admin
 npx wrangler d1 create ig-comment-dm-db      # 記下輸出的 database_id
 npx wrangler queues create ig-comment-events
 
-# 設定：直接編輯 wrangler.jsonc
-#   → 填入 database_id、INSTAGRAM_ACCOUNT_ID、ADMIN_EMAIL
-#   （每個欄位的取得方式，wrangler.jsonc 檔內的註解都有逐一說明）
+# 設定：編輯 wrangler.jsonc——只需要填一個值：
+#   → 把 <D1_DATABASE_ID> 換成上面指令印出的 database_id
 # 若你之後會貢獻程式碼回來，先讓個人部署值不會被提交：
 git update-index --skip-worktree wrangler.jsonc
 
@@ -96,7 +94,7 @@ npm run deploy
    - Callback URL：`https://<你的網域>/api/webhooks/meta/instagram`
    - Verify token：與 `META_VERIFY_TOKEN` secret 相同的值
    - 訂閱 **`comments`** 欄位。
-4. App 審核（App Review）需要公開的隱私政策網址——本專案內建於 `https://<你的網域>/privacy`（聯絡信箱讀取 `ADMIN_EMAIL`）。
+4. App 審核（App Review）需要公開的隱私政策網址——本專案內建於 `https://<你的網域>/privacy`（頁面顯示的聯絡信箱即你的管理者帳號 Email）。
 
 ### 3. 建立管理者帳號
 
