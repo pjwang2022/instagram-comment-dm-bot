@@ -39,7 +39,9 @@ export function AppHeader() {
         </nav>
       </div>
       <div className="app-header-right">
-        <span>{email}</span>
+        <NavLink to="/account" className="nav-link" title="帳號設定（變更密碼）">
+          {email}
+        </NavLink>
         <button className="btn btn-ghost btn-sm" onClick={logout}>
           登出
         </button>

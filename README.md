@@ -105,6 +105,12 @@ npm run create-admin
 npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
 ```
 
+**Change password**: click your email in the dashboard header → Account settings. **Forgot password**: clear the admin account and the first-run setup form reappears — your Cloudflare account permission is the proof of identity:
+
+```bash
+npx wrangler d1 execute DB --remote --command "DELETE FROM admin_users"
+```
+
 ### 4. Verify
 
 ```bash

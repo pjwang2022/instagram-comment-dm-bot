@@ -104,6 +104,12 @@ npm run create-admin
 npx wrangler d1 execute DB --remote --file=admin-insert.sql && rm admin-insert.sql
 ```
 
+**變更密碼**：點後台頁首的 Email → 帳號設定。**忘記密碼**：清除管理者帳號後，首次設定表單會重新出現——能執行這條指令代表你擁有 Cloudflare 帳號權限，這本身就是身分證明：
+
+```bash
+npx wrangler d1 execute DB --remote --command "DELETE FROM admin_users"
+```
+
 ### 4. 驗證
 
 ```bash

@@ -297,6 +297,10 @@ body {
   color: var(--danger-fg);
   background: var(--danger-bg);
 }
+.alert-success {
+  color: var(--success-fg);
+  background: var(--success-bg);
+}
 
 /* ── Empty / loading state ── */
 .state-note {

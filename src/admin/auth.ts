@@ -140,6 +140,61 @@ export function createAuthRoutes() {
     return c.json({ email: rows[0].email });
   });
 
+  // POST /api/admin/auth/change-password——登入後變更密碼。
+  // 需驗證目前密碼（防止被竊 session 直接改密碼鎖走帳號）；套用 login 級限流
+  // （每 IP 15 分鐘窗口），避免持有 session 者暴力猜測目前密碼。
+  auth.post(
+    '/change-password',
+    csrfMiddleware(),
+    requireAdminAuth(),
+    loginRateLimitMiddleware(),
+    async (c) => {
+      const ip = c.req.header('CF-Connecting-IP') ?? null;
+
+      let body: { currentPassword?: unknown; newPassword?: unknown };
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: '請求格式錯誤' }, 400);
+      }
+      const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
+      const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
+      if (!currentPassword) {
+        return c.json({ error: '請輸入目前密碼' }, 400);
+      }
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
+        return c.json({ error: `新密碼長度至少需要 ${MIN_PASSWORD_LENGTH} 個字元` }, 400);
+      }
+
+      const db = createDb(c.env.DB);
+      const adminUserId = c.get('adminUserId');
+      const rows = await db.select().from(adminUsers).where(eq(adminUsers.id, adminUserId)).limit(1);
+      const user = rows[0];
+      if (!user) return c.json({ error: '未授權' }, 401);
+
+      const currentOk = await verifyPassword(currentPassword, user.passwordHash);
+      if (!currentOk) {
+        await writeAuditLog(c.env, {
+          adminUserId,
+          action: 'admin.password.change.failure',
+          ipAddress: ip,
+        });
+        return c.json({ error: '目前密碼不正確' }, 400);
+      }
+
+      await db
+        .update(adminUsers)
+        .set({ passwordHash: await hashPassword(newPassword), updatedAt: new Date().toISOString() })
+        .where(eq(adminUsers.id, adminUserId));
+      await writeAuditLog(c.env, {
+        adminUserId,
+        action: 'admin.password.change.success',
+        ipAddress: ip,
+      });
+      return c.json({ ok: true });
+    },
+  );
+
   // POST /api/admin/auth/login
   // CSRF（Origin 驗證）→ 登入頻率限制 → 帳密驗證。登入用專屬的 login 限流（每 IP 15 分鐘），
   // 不套一般 admin-api 限流。

@@ -288,3 +288,112 @@ describe('first-run setup（GET setup-status / POST setup）', () => {
     expect(serialized).not.toContain('pbkdf2$');
   });
 });
+
+describe('POST /api/admin/auth/change-password', () => {
+  async function loginAndGetCookie() {
+    const app = createApp();
+    const res = await app.fetch(
+      loginRequest({ email: 'admin@example.com', password: 'correct-password-123' }),
+      env,
+    );
+    return { app, cookie: (res.headers.get('Set-Cookie') ?? '').split(';')[0] };
+  }
+
+  function changeRequest(cookie: string, body: object) {
+    return new Request('https://igbot.example.com/api/admin/auth/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'https://igbot.example.com',
+        Cookie: cookie,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it('changes the password: old stops working, new works', async () => {
+    await seedAdmin('admin@example.com', 'correct-password-123');
+    const { app, cookie } = await loginAndGetCookie();
+
+    const res = await app.fetch(
+      changeRequest(cookie, {
+        currentPassword: 'correct-password-123',
+        newPassword: 'brand-new-password-456',
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+
+    const oldLogin = await app.fetch(
+      loginRequest({ email: 'admin@example.com', password: 'correct-password-123' }),
+      env,
+    );
+    expect(oldLogin.status).toBe(401);
+    const newLogin = await app.fetch(
+      loginRequest({ email: 'admin@example.com', password: 'brand-new-password-456' }),
+      env,
+    );
+    expect(newLogin.status).toBe(200);
+  });
+
+  it('rejects a wrong current password and keeps the old one working', async () => {
+    await seedAdmin('admin@example.com', 'correct-password-123');
+    const { app, cookie } = await loginAndGetCookie();
+
+    const res = await app.fetch(
+      changeRequest(cookie, { currentPassword: 'totally-wrong-pass', newPassword: 'brand-new-password-456' }),
+      env,
+    );
+    expect(res.status).toBe(400);
+
+    const stillWorks = await app.fetch(
+      loginRequest({ email: 'admin@example.com', password: 'correct-password-123' }),
+      env,
+    );
+    expect(stillWorks.status).toBe(200);
+  });
+
+  it('rejects a short new password and an unauthenticated request', async () => {
+    await seedAdmin('admin@example.com', 'correct-password-123');
+    const { app, cookie } = await loginAndGetCookie();
+
+    const short = await app.fetch(
+      changeRequest(cookie, { currentPassword: 'correct-password-123', newPassword: 'short' }),
+      env,
+    );
+    expect(short.status).toBe(400);
+
+    const noAuth = await app.fetch(
+      new Request('https://igbot.example.com/api/admin/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'https://igbot.example.com' },
+        body: JSON.stringify({ currentPassword: 'x', newPassword: 'brand-new-password-456' }),
+      }),
+      env,
+    );
+    expect(noAuth.status).toBe(401);
+  });
+
+  it('writes audit logs for success and failure without leaking secrets', async () => {
+    await seedAdmin('admin@example.com', 'correct-password-123');
+    const { app, cookie } = await loginAndGetCookie();
+
+    await app.fetch(
+      changeRequest(cookie, { currentPassword: 'wrong-password-000', newPassword: 'brand-new-password-456' }),
+      env,
+    );
+    await app.fetch(
+      changeRequest(cookie, { currentPassword: 'correct-password-123', newPassword: 'brand-new-password-456' }),
+      env,
+    );
+
+    const db = drizzle(sqlite, { schema });
+    const logs = await db.select().from(auditLogs);
+    const actions = logs.map((l) => l.action);
+    expect(actions).toContain('admin.password.change.failure');
+    expect(actions).toContain('admin.password.change.success');
+    const serialized = JSON.stringify(logs);
+    expect(serialized).not.toContain('brand-new-password-456');
+    expect(serialized).not.toContain('pbkdf2$');
+  });
+});

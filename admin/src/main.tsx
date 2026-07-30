@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MediaPage } from './pages/MediaPage';
 import { AutomationEditorPage } from './pages/AutomationEditorPage';
+import { AccountPage } from './pages/AccountPage';
 import './styles/tokens.css';
 import './styles/app.css';
 
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/media" element={<MediaPage />} />
         <Route path="/media/:mediaId/automation" element={<AutomationEditorPage />} />
         <Route path="/automations/new" element={<AutomationEditorPage />} />
+        <Route path="/account" element={<AccountPage />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
