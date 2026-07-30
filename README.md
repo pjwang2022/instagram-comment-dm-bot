@@ -8,9 +8,24 @@
 
 Built for a single admin managing their own Instagram Professional account. No third-party SaaS, no per-message fees: your Meta app, your Cloudflare account, your data.
 
+## One-Click Deploy
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/pjwang2022/instagram-comment-dm-bot)
 
-One click copies this repo to your GitHub account, provisions the D1 database and Queue in your Cloudflare account (Workers Paid plan required for Queues), prompts you for the secrets listed in `.dev.vars.example`, and sets up push-to-deploy. You still need the [Meta side setup](#2-meta-side) and an [admin account](#1-cloudflare-side) afterwards.
+Clicking the button will:
+
+1. **Copy this repo** into your own GitHub (or GitLab) account.
+2. **Provision the resources** in your Cloudflare account — the D1 database and the Queue (Queues requires the **Workers Paid** plan).
+3. **Prompt you for the five secrets** listed in [`.dev.vars.example`](.dev.vars.example) (`META_APP_SECRET`, `META_VERIFY_TOKEN`, `INSTAGRAM_ACCESS_TOKEN`, `ADMIN_SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`).
+4. **Build & deploy**, and set up push-to-deploy: every push to your copy redeploys automatically.
+
+After the first deploy, finish up in your own repo copy:
+
+- Edit `wrangler.jsonc` → replace the `<TODO:...>` values (`INSTAGRAM_ACCOUNT_ID`, `APP_BASE_URL`, `ADMIN_EMAIL`) and push — it redeploys automatically.
+- Complete the [Meta side setup](#2-meta-side) (webhook subscription + access token).
+- Create your [admin account](#1-cloudflare-side).
+
+Prefer doing everything by hand? Follow the full [Quick Start](#quick-start) below.
 
 ## Features
 

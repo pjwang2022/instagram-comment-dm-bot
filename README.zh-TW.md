@@ -8,9 +8,24 @@
 
 為「單一管理者管理自己的 Instagram 專業帳號」而設計。不依賴第三方 SaaS、沒有按訊息計費：你自己的 Meta App、你自己的 Cloudflare 帳號、你自己的資料。
 
+## 一鍵部署
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/pjwang2022/instagram-comment-dm-bot)
 
-一鍵完成：把本 repo 複製到你的 GitHub 帳號、在你的 Cloudflare 帳號自動開通 D1 與 Queue（Queues 需要 Workers Paid 方案）、依 `.dev.vars.example` 提示你填入 secrets、並設好 push 即自動部署。之後仍需完成 [Meta 端設定](#2-meta-端)與[管理者帳號](#1-cloudflare-端)。
+點按鈕後會依序發生：
+
+1. **複製本 repo** 到你自己的 GitHub（或 GitLab）帳號。
+2. **自動開通資源**——在你的 Cloudflare 帳號建立 D1 資料庫與 Queue（Queues 需要 **Workers Paid** 方案）。
+3. **提示你填入五個 secrets**（清單見 [`.dev.vars.example`](.dev.vars.example)：`META_APP_SECRET`、`META_VERIFY_TOKEN`、`INSTAGRAM_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`、`TOKEN_ENCRYPTION_KEY`）。
+4. **建置並部署**，同時設好 push 即自動重新部署：之後改你那份 repo、push 就會自動上線。
+
+首次部署完成後，到你自己的 repo 收尾：
+
+- 編輯 `wrangler.jsonc` → 把 `<TODO:...>` 換成實際值（`INSTAGRAM_ACCOUNT_ID`、`APP_BASE_URL`、`ADMIN_EMAIL`）後 push，會自動重新部署。
+- 完成 [Meta 端設定](#2-meta-端)（webhook 訂閱＋access token）。
+- 建立[管理者帳號](#1-cloudflare-端)。
+
+想全程手動操作？請看下方完整的 [Quick Start](#quick-start)。
 
 ## 功能
 
