@@ -4,10 +4,26 @@ import { useNavigate } from 'react-router';
 import { AppHeader } from '../components/AppHeader';
 import { apiGet, apiPost, type ApiError } from '../api/client';
 
+interface TodayStats {
+  matched: number;
+  publicReplySuccess: number;
+  dmSuccess: number;
+  failures: number;
+}
+interface PlatformStatus {
+  platform: string;
+  username: string | null;
+  circuitBreakerStatus: string;
+  tokenExpiresAt: string | null;
+  lastWebhookReceivedAt: string | null;
+  automationEnabled: boolean;
+  today: TodayStats;
+}
 interface Status {
   emergencyStop: boolean;
   circuitBreakerStatus: string;
-  today: { matched: number; publicReplySuccess: number; dmSuccess: number; failures: number };
+  today: TodayStats;
+  platforms?: PlatformStatus[];
 }
 interface AutoStats {
   triggered: number;
@@ -19,9 +35,41 @@ interface AutoItem {
   automationId: string;
   name: string;
   status: string;
+  applyScope?: string;
+  platform?: string;
   keywordCount: number;
   media: { id: string; mediaType: string; caption: string | null; thumbnailUrl: string | null; permalink: string | null } | null;
   stats: AutoStats;
+}
+
+function platformLabel(p: string): string {
+  return p === 'facebook' ? 'Facebook 粉專' : 'Instagram';
+}
+
+// 單一平台的監控卡：帳號、熔斷器、webhook 心跳、今日成效。
+function PlatformCard({ p }: { p: PlatformStatus }) {
+  const healthy = p.circuitBreakerStatus === 'closed' && p.automationEnabled;
+  return (
+    <div className="card" style={{ flex: 1, minWidth: 260 }}>
+      <div className="status-line" style={{ justifyContent: 'space-between' }}>
+        <strong>
+          {platformLabel(p.platform)}
+          {p.username ? <span className="muted-inline">（{p.username}）</span> : null}
+        </strong>
+        <span className={`badge ${healthy ? 'badge-success' : 'badge-warning'}`}>
+          {healthy ? '正常' : p.automationEnabled ? `熔斷：${p.circuitBreakerStatus}` : '已停用'}
+        </span>
+      </div>
+      <div className="muted-inline" style={{ display: 'block', marginTop: 'var(--space-2)' }}>
+        今日 · 符合 {p.today.matched}｜公開回覆 {p.today.publicReplySuccess}｜DM {p.today.dmSuccess}｜失敗{' '}
+        {p.today.failures}
+      </div>
+      <div className="muted-inline" style={{ display: 'block', marginTop: 'var(--space-1)' }}>
+        最後 webhook：{p.lastWebhookReceivedAt ? p.lastWebhookReceivedAt.replace('T', ' ').slice(0, 16) : '尚未收到'}
+        {p.tokenExpiresAt ? `｜Token 到期：${p.tokenExpiresAt.slice(0, 10)}` : ''}
+      </div>
+    </div>
+  );
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -89,14 +137,13 @@ export function DashboardPage() {
 
         {status ? (
           <>
-            <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+            <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
               <div className="toolbar">
                 <span className={`badge ${status.emergencyStop ? 'badge-danger' : 'badge-success'}`}>
                   {status.emergencyStop ? '緊急停止中' : '系統運作中'}
                 </span>
-                <span className="badge badge-neutral">熔斷器：{status.circuitBreakerStatus}</span>
                 <span className="muted-inline">
-                  今日 · 符合 {status.today.matched}｜公開回覆 {status.today.publicReplySuccess}｜DM {status.today.dmSuccess}｜失敗 {status.today.failures}
+                  今日合計 · 符合 {status.today.matched}｜公開回覆 {status.today.publicReplySuccess}｜DM {status.today.dmSuccess}｜失敗 {status.today.failures}
                 </span>
                 <div style={{ flex: 1 }} />
                 <button className={`btn btn-sm ${status.emergencyStop ? 'btn-primary' : 'btn-danger'}`} onClick={toggleEmergency}>
@@ -104,6 +151,14 @@ export function DashboardPage() {
                 </button>
               </div>
             </div>
+
+            {status.platforms && status.platforms.length > 0 ? (
+              <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap', marginBottom: 'var(--space-6)' }}>
+                {status.platforms.map((p) => (
+                  <PlatformCard key={p.platform} p={p} />
+                ))}
+              </div>
+            ) : null}
           </>
         ) : null}
 
@@ -127,10 +182,23 @@ export function DashboardPage() {
                 <div className="auto-body">
                   <div className="auto-head">
                     <span className="auto-name">{a.name}</span>
+                    {a.platform === 'facebook' ? <span className="badge badge-neutral">FB</span> : null}
+                    {a.applyScope === 'next_post' ? (
+                      <span className="badge badge-neutral">待綁定</span>
+                    ) : a.applyScope === 'account_default' ? (
+                      <span className="badge badge-neutral">全帳號預設</span>
+                    ) : null}
                     <StatusBadge status={a.status} />
                     <span className="muted-inline">{a.keywordCount} 個關鍵字</span>
                     <div className="auto-head-spacer" />
-                    <button className="btn btn-ghost btn-sm" onClick={() => a.media && navigate(`/media/${a.media.id}/automation?automationId=${a.automationId}`)}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() =>
+                        a.media
+                          ? navigate(`/media/${a.media.id}/automation?automationId=${a.automationId}`)
+                          : navigate(`/automations/new?scope=${a.applyScope}&automationId=${a.automationId}`)
+                      }
+                    >
                       編輯
                     </button>
                   </div>

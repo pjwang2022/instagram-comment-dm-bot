@@ -77,3 +77,56 @@ describe('system control API', () => {
     expect(status.circuitBreakerStatus).toBe('closed');
   });
 });
+
+describe('per-platform monitoring（platforms 陣列）', () => {
+  it('reports each connected platform separately with its own today stats', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.instagramAccounts).values({
+      id: 'fb-acct',
+      platform: 'facebook',
+      instagramAccountId: 'page-1',
+      username: 'reflect.everyday',
+      circuitBreakerStatus: 'closed',
+    });
+    // IG 貼文＋自動化＋今日一筆成功 run；FB 無 run。
+    await db.insert(schema.instagramMedia).values({
+      id: 'm1',
+      instagramAccountId: 'acct',
+      instagramMediaId: 'ig-media-1',
+      mediaType: 'IMAGE',
+    });
+    await db.insert(schema.automations).values({
+      id: 'auto-ig',
+      instagramMediaId: 'm1',
+      platform: 'instagram',
+      name: 'ig',
+      status: 'active',
+      matchType: 'contains_any',
+    });
+    await db.insert(schema.automationRuns).values({
+      id: 'run-1',
+      automationId: 'auto-ig',
+      instagramCommentId: 'c1',
+      instagramMediaId: 'ig-media-1',
+      status: 'completed',
+      publicReplyStatus: 'success',
+      privateReplyStatus: 'success',
+    });
+
+    const res = await createApp().fetch(get('/status'), env);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      platforms: { platform: string; username: string | null; today: { matched: number; dmSuccess: number } }[];
+      today: { matched: number };
+    };
+
+    expect(body.platforms).toHaveLength(2);
+    const ig = body.platforms.find((p) => p.platform === 'instagram')!;
+    const fb = body.platforms.find((p) => p.platform === 'facebook')!;
+    expect(ig.today.matched).toBe(1);
+    expect(ig.today.dmSuccess).toBe(1);
+    expect(fb.username).toBe('reflect.everyday');
+    expect(fb.today.matched).toBe(0);
+    expect(body.today.matched).toBe(1); // 合計
+  });
+});
