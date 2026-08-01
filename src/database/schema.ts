@@ -180,6 +180,8 @@ export const apiAttempts = sqliteTable(
     actionType: text('action_type').notNull(),
     attemptNumber: integer('attempt_number').notNull(),
     httpStatus: integer('http_status'),
+    // 熔斷評估用的失敗分類（token_invalid/permission_denied/policy_restricted/other；成功為 NULL）。
+    failureReason: text('failure_reason'),
     metaErrorCode: text('meta_error_code'),
     metaErrorSubcode: text('meta_error_subcode'),
     metaErrorMessage: text('meta_error_message'),
@@ -214,5 +216,25 @@ export const loginRateLimits = sqliteTable(
     createdAt: text('created_at').notNull().$defaultFn(nowIso),
     updatedAt: text('updated_at').notNull().$defaultFn(nowIso),
   },
-  (table) => [index('idx_login_rate_limits_ip').on(table.ipAddress)],
+  (table) => [
+    index('idx_login_rate_limits_ip').on(table.ipAddress),
+    // 同一 IP 同一窗口只允許一列，讓計數能用原子 upsert（防併發繞過十次上限）。
+    uniqueIndex('login_rate_limits_ip_window_unique').on(table.ipAddress, table.windowStart),
+  ],
+);
+
+// 外發限額計數（系統層每分鐘/每日上限）。以 (scope_key, window_start) 唯一列 + 原子 upsert
+// 遞增做「先保留再發送」：計入但未發送的保留只會讓實際發送量更保守，不會超限。
+export const sendCounters = sqliteTable(
+  'send_counters',
+  {
+    id: text('id').primaryKey(),
+    // 例：public_reply:minute、private_reply:day。
+    scopeKey: text('scope_key').notNull(),
+    windowStart: text('window_start').notNull(),
+    count: integer('count').notNull().default(0),
+    createdAt: text('created_at').notNull().$defaultFn(nowIso),
+    updatedAt: text('updated_at').notNull().$defaultFn(nowIso),
+  },
+  (table) => [uniqueIndex('send_counters_scope_window_unique').on(table.scopeKey, table.windowStart)],
 );

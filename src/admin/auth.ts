@@ -61,6 +61,8 @@ export function requireAdminAuth() {
 
 // 與 scripts/create-admin.ts 相同的密碼下限。
 const MIN_PASSWORD_LENGTH = 12;
+// 上限：PBKDF2 對輸入全文做多輪雜湊，超長密碼是免費的 CPU 放大器；256 足夠任何 passphrase。
+const MAX_PASSWORD_LENGTH = 256;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function createAuthRoutes() {
@@ -95,8 +97,24 @@ export function createAuthRoutes() {
     if (password.length < MIN_PASSWORD_LENGTH) {
       return c.json({ error: `密碼長度至少需要 ${MIN_PASSWORD_LENGTH} 個字元` }, 400);
     }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return c.json({ error: `密碼長度不可超過 ${MAX_PASSWORD_LENGTH} 個字元` }, 400);
+    }
 
     const db = createDb(c.env.DB);
+
+    // setup 已關閉就先拒絕，避免對必然失敗的請求執行昂貴的 PBKDF2（遠端可觸發的 CPU 消耗）。
+    // 真正的首次啟動競態仍由下方的原子 INSERT ... WHERE NOT EXISTS 決勝負。
+    const existingAdmin = await db.select({ id: adminUsers.id }).from(adminUsers).limit(1);
+    if (existingAdmin.length > 0) {
+      await writeAuditLog(c.env, {
+        adminUserId: null,
+        action: 'admin.setup.rejected',
+        ipAddress: ip,
+      });
+      return c.json({ error: '系統已完成初始設定' }, 403);
+    }
+
     const id = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
     const now = new Date().toISOString();
@@ -164,6 +182,9 @@ export function createAuthRoutes() {
       }
       if (newPassword.length < MIN_PASSWORD_LENGTH) {
         return c.json({ error: `新密碼長度至少需要 ${MIN_PASSWORD_LENGTH} 個字元` }, 400);
+      }
+      if (newPassword.length > MAX_PASSWORD_LENGTH) {
+        return c.json({ error: `新密碼長度不可超過 ${MAX_PASSWORD_LENGTH} 個字元` }, 400);
       }
 
       const db = createDb(c.env.DB);

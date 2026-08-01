@@ -66,12 +66,14 @@
     ]
   },
   "triggers": {
-    // 台北時間 04:00（貼文/Reels 每日同步）與 08:00（Token 到期檢查）換算 UTC。
-    // 台灣不使用日光節約時間，固定 UTC+8：04:00 Asia/Taipei = 20:00 UTC（前一天）；08:00 Asia/Taipei = 00:00 UTC。
-    // 資料清理排程本階段不做，故不在此宣告第三個 cron。
+    // 台北時間 04:00（貼文/Reels 每日同步）、08:00（Token 到期檢查）、03:00（資料清理，spec §20）換算 UTC。
+    // 台灣不使用日光節約時間，固定 UTC+8：04:00 Asia/Taipei = 20:00 UTC（前一天）；
+    // 08:00 Asia/Taipei = 00:00 UTC；03:00 Asia/Taipei = 19:00 UTC（前一天）。
+    // 19:00 UTC 的分派邏輯見 src/maintenance/cleanup.ts 的 CLEANUP_CRON。
     "crons": [
       "0 20 * * *",
-      "0 0 * * *"
+      "0 0 * * *",
+      "0 19 * * *"
     ]
   },
   // 測試環境：`npm run deploy -- --env staging`。

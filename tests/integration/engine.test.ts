@@ -252,6 +252,135 @@ describe('processCommentEvent — retry semantics', () => {
   });
 });
 
+describe('processCommentEvent — send limits（統一送出 gate）', () => {
+  it('skips the public reply once the system daily public cap is reached, but still sends the DM', async () => {
+    await seedAutomation();
+    await db.insert(schema.systemSettings).values({ id: 's', maxPublicRepliesPerDay: 1 });
+    const { client, fetchImpl } = okClient();
+
+    const evt1 = await seedWebhookEvent('c1', '我想要 ADHD');
+    const first = await processCommentEvent({ db, metaClient: client }, msg('c1', evt1));
+    expect(first.kind).toBe('completed');
+    if (first.kind === 'completed') expect(first.publicReplyStatus).toBe('success');
+
+    const evt2 = await seedWebhookEvent('c2', '我也要 ADHD');
+    const second = await processCommentEvent({ db, metaClient: client }, msg('c2', evt2));
+    expect(second.kind).toBe('completed');
+    if (second.kind === 'completed') {
+      expect(second.publicReplyStatus).toBe('skipped');
+      expect(second.privateReplyStatus).toBe('success');
+    }
+    // c1 兩次（public+DM）+ c2 一次（只有 DM）= 3 次 Meta 呼叫
+    expect((fetchImpl as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(3);
+  });
+
+  it('skips both actions once the automation daily limit is reached', async () => {
+    await seedAutomation({ dailyLimit: 1 });
+    const { client, fetchImpl } = okClient();
+
+    const evt1 = await seedWebhookEvent('c1', '我想要 ADHD');
+    const first = await processCommentEvent({ db, metaClient: client }, msg('c1', evt1));
+    expect(first.kind).toBe('completed');
+
+    const evt2 = await seedWebhookEvent('c2', '我也要 ADHD');
+    const second = await processCommentEvent({ db, metaClient: client }, msg('c2', evt2));
+    expect(second.kind).toBe('completed');
+    if (second.kind === 'completed') {
+      expect(second.publicReplyStatus).toBe('skipped');
+      expect(second.privateReplyStatus).toBe('skipped');
+    }
+    // 只有 c1 的兩次呼叫
+    expect((fetchImpl as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(2);
+  });
+
+  it('blocks the DM when emergency stop is activated mid-run (after the early check)', async () => {
+    await seedAutomation();
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+
+    // 公開回覆成功當下（第一次 Meta 呼叫）觸發緊急停止——模擬管理者在 job 進行中按下停止。
+    const fetchImpl = vi.fn(async () => {
+      await db
+        .insert(schema.systemSettings)
+        .values({ id: 's', emergencyStop: 1 })
+        .onConflictDoUpdate({ target: schema.systemSettings.id, set: { emergencyStop: 1 } });
+      return new Response(JSON.stringify({ id: 'x', message_id: 'm' }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new MetaClient({ accessToken: 't', graphApiVersion: 'v21.0', fetchImpl });
+
+    const outcome = await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+    expect(outcome.kind).toBe('completed');
+    if (outcome.kind === 'completed') {
+      expect(outcome.publicReplyStatus).toBe('success');
+      expect(outcome.privateReplyStatus).toBe('skipped'); // DM 前的重查擋下
+    }
+    expect((fetchImpl as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(1);
+  });
+});
+
+describe('processCommentEvent — circuit breaker（熔斷接線）', () => {
+  function failingClient(errorCode: number) {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ error: { message: 'err', code: errorCode } }), { status: 400 }),
+    ) as unknown as typeof fetch;
+    return { client: new MetaClient({ accessToken: 't', graphApiVersion: 'v21.0', fetchImpl }), fetchImpl };
+  }
+
+  it('opens the breaker on an explicit policy-restricted error (code 368)', async () => {
+    await seedAutomation();
+    const { client } = failingClient(368);
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+    await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+
+    const account = (await db.select().from(schema.instagramAccounts))[0];
+    expect(account.circuitBreakerStatus).toBe('open');
+  });
+
+  it('opens the breaker after 5 consecutive token-invalid errors and skips later events', async () => {
+    await seedAutomation();
+    const { client } = failingClient(190);
+
+    // 每則留言最多產生 2 次嘗試（public + DM），3 則留言即累積 ≥5 次連續 token_invalid。
+    for (let i = 1; i <= 3; i++) {
+      const evt = await seedWebhookEvent(`c${i}`, '我想要 ADHD');
+      await processCommentEvent({ db, metaClient: client }, msg(`c${i}`, evt));
+    }
+
+    const account = (await db.select().from(schema.instagramAccounts))[0];
+    expect(account.circuitBreakerStatus).toBe('open');
+
+    // 熔斷後：後續事件直接 skip，不再打 Meta。
+    const { client: ok, fetchImpl } = okClient();
+    const evt = await seedWebhookEvent('c9', '我想要 ADHD');
+    const outcome = await processCommentEvent({ db, metaClient: ok }, msg('c9', evt));
+    expect(outcome).toEqual({ kind: 'skipped', reason: 'circuit_open' });
+    expect((fetchImpl as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(0);
+  });
+
+  it('does not open the breaker on successful sends and records no failure reason', async () => {
+    await seedAutomation();
+    const { client } = okClient();
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+    await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+
+    const account = (await db.select().from(schema.instagramAccounts))[0];
+    expect(account.circuitBreakerStatus).toBe('closed');
+    const attempts = await db.select().from(schema.apiAttempts);
+    expect(attempts).toHaveLength(2);
+    for (const a of attempts) expect(a.failureReason).toBeNull();
+  });
+
+  it('records the failure classification on failed attempts', async () => {
+    await seedAutomation();
+    const { client } = failingClient(190);
+    const evt = await seedWebhookEvent('c1', '我想要 ADHD');
+    await processCommentEvent({ db, metaClient: client }, msg('c1', evt));
+
+    const attempts = await db.select().from(schema.apiAttempts);
+    expect(attempts.length).toBeGreaterThan(0);
+    for (const a of attempts) expect(a.failureReason).toBe('token_invalid');
+  });
+});
+
 describe('processCommentEvent — apply scope（待命與全帳號預設）', () => {
   async function seedAccountAndMedia(publishedAt: string | null = '2026-07-30T00:00:00Z') {
     await db.insert(schema.instagramAccounts).values({ id: 'acct', instagramAccountId: 'ig-acct' });

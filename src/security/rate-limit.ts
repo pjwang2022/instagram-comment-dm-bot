@@ -3,7 +3,7 @@
 // - 登入（每 IP 15 分鐘 10 次）：原生 binding 週期只支援 10/60 秒，無法表示 15 分鐘窗口，
 //   改用 login_rate_limits D1 計數表做固定窗口計數。
 // - 兩者故障一律 fail-closed（回 429），不得默默放行。
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { createMiddleware } from 'hono/factory';
 import type { AppBindings } from '../app';
@@ -35,37 +35,28 @@ export async function checkLoginRateLimit(
   try {
     const windowStart = loginWindowStart(nowMs);
 
-    // 機會性清掉這個 IP 的過期窗口，避免表無限增長（資料清理 Epic 已延後，這裡自理）。
+    // 機會性清掉這個 IP 的過期窗口（全域過期清理由每日 cleanup cron 負責）。
     await db
       .delete(loginRateLimits)
       .where(and(eq(loginRateLimits.ipAddress, ip), lt(loginRateLimits.windowStart, windowStart)));
 
-    const existing = await db
-      .select()
-      .from(loginRateLimits)
-      .where(and(eq(loginRateLimits.ipAddress, ip), eq(loginRateLimits.windowStart, windowStart)))
-      .limit(1);
+    // 原子 upsert：同一 (ip, window) 靠 unique index 保證單列，遞增與取回新值是
+    // 同一條語句，併發請求無法像舊的 SELECT-then-UPDATE 那樣覆蓋彼此的計數。
+    const rows = await db
+      .insert(loginRateLimits)
+      .values({ id: crypto.randomUUID(), ipAddress: ip, windowStart, attemptCount: 1 })
+      .onConflictDoUpdate({
+        target: [loginRateLimits.ipAddress, loginRateLimits.windowStart],
+        set: {
+          attemptCount: sql`${loginRateLimits.attemptCount} + 1`,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      .returning({ attemptCount: loginRateLimits.attemptCount });
 
-    if (existing.length === 0) {
-      await db.insert(loginRateLimits).values({
-        id: crypto.randomUUID(),
-        ipAddress: ip,
-        windowStart,
-        attemptCount: 1,
-      });
-      return true;
-    }
-
-    const row = existing[0];
-    if (row.attemptCount >= LOGIN_MAX_ATTEMPTS) {
-      return false;
-    }
-
-    await db
-      .update(loginRateLimits)
-      .set({ attemptCount: row.attemptCount + 1, updatedAt: new Date().toISOString() })
-      .where(eq(loginRateLimits.id, row.id));
-    return true;
+    const count = rows[0]?.attemptCount;
+    if (typeof count !== 'number') return false; // fail-closed
+    return count <= LOGIN_MAX_ATTEMPTS;
   } catch {
     // fail-closed：限流元件出錯時視為已達限制。
     return false;

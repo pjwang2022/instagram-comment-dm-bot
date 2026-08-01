@@ -18,7 +18,7 @@ function createTestDb() {
 }
 
 describe('D1 schema migration', () => {
-  it('creates all 12 tables', () => {
+  it('creates all 13 tables', () => {
     const sqlite = new Database(':memory:');
     const migrationsDir = join(__dirname, '../../drizzle/migrations');
     for (const file of readdirSync(migrationsDir).filter((f) => f.endsWith('.sql'))) {
@@ -39,6 +39,7 @@ describe('D1 schema migration', () => {
       'instagram_media',
       'login_rate_limits',
       'public_reply_variants',
+      'send_counters',
       'system_settings',
       'webhook_events',
     ]);

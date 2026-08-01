@@ -76,5 +76,33 @@ describe('system control API', () => {
     const status = await (await createApp().fetch(get('/status'), env)).json();
     expect(status.circuitBreakerStatus).toBe('closed');
   });
+
+  it('resets an open circuit breaker and writes an audit log', async () => {
+    const db = drizzle(sqlite, { schema });
+    sqlite.prepare("UPDATE instagram_accounts SET circuit_breaker_status = 'open'").run();
+
+    const app = createApp();
+    const res = await app.fetch(post('/circuit-breaker/reset'), env);
+    expect(res.status).toBe(200);
+
+    const account = (await db.select().from(schema.instagramAccounts))[0];
+    expect(account.circuitBreakerStatus).toBe('closed');
+    const logs = (await db.select().from(schema.auditLogs)).map((l) => l.action);
+    expect(logs).toContain('system.circuit_breaker_reset');
+
+    const status = await (await app.fetch(get('/status'), env)).json();
+    expect(status.circuitBreakerStatus).toBe('closed');
+  });
+
+  it('requires auth for circuit breaker reset', async () => {
+    const res = await createApp().fetch(
+      new Request('https://igbot.example.com/api/admin/system/circuit-breaker/reset', {
+        method: 'POST',
+        headers: { Origin: 'https://igbot.example.com' },
+      }),
+      env,
+    );
+    expect(res.status).toBe(401);
+  });
 });
 

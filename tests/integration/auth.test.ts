@@ -1,12 +1,18 @@
 import { join } from 'path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app';
 import * as schema from '../../src/database/schema';
 import { adminUsers, auditLogs } from '../../src/database/schema';
 import { hashPassword } from '../../src/security/password';
 import { applyMigrations, createD1Shim } from '../helpers/d1-shim';
+
+// 包一層 spy：驗證「setup 已關閉時不執行昂貴的 PBKDF2」。實際行為 pass-through。
+vi.mock('../../src/security/password', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../../src/security/password')>();
+  return { ...mod, hashPassword: vi.fn(mod.hashPassword) };
+});
 
 const alwaysAllowLimiter = { limit: async () => ({ success: true }) };
 
@@ -225,6 +231,30 @@ describe('first-run setup（GET setup-status / POST setup）', () => {
     const admins = await db.select().from(adminUsers);
     expect(admins).toHaveLength(1);
     expect(admins[0].email).toBe('admin@example.com');
+  });
+
+  it('does not run password hashing when setup is already closed', async () => {
+    await seedAdmin('admin@example.com', 'correct-password-123');
+    vi.mocked(hashPassword).mockClear();
+
+    const app = createApp();
+    const res = await app.fetch(
+      setupRequest({ email: 'intruder@example.com', password: 'long-enough-password' }),
+      env,
+    );
+    expect(res.status).toBe(403);
+    expect(hashPassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized password with 400 before hashing', async () => {
+    vi.mocked(hashPassword).mockClear();
+    const app = createApp();
+    const res = await app.fetch(
+      setupRequest({ email: 'first@example.com', password: 'x'.repeat(257) }),
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(hashPassword).not.toHaveBeenCalled();
   });
 
   it('only lets one of two competing setup requests win', async () => {

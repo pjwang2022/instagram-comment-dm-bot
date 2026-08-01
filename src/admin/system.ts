@@ -91,5 +91,21 @@ export function createSystemRoutes() {
     return c.json({ ok: true, emergencyStop: false });
   });
 
+  // 熔斷復歸：把帳號的熔斷狀態設回 closed（單帳號系統，直接更新全部帳號列）。
+  app.post('/circuit-breaker/reset', csrfMiddleware(), adminApiRateLimitMiddleware(), async (c) => {
+    const db = createDb(c.env.DB);
+    await db
+      .update(instagramAccounts)
+      .set({ circuitBreakerStatus: 'closed', updatedAt: new Date().toISOString() });
+    await db.insert(auditLogs).values({
+      id: crypto.randomUUID(),
+      adminUserId: c.get('adminUserId'),
+      action: 'system.circuit_breaker_reset',
+      entityType: 'instagram_accounts',
+      ipAddress: c.req.header('CF-Connecting-IP') ?? null,
+    });
+    return c.json({ ok: true, circuitBreakerStatus: 'closed' });
+  });
+
   return app;
 }

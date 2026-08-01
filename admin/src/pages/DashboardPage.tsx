@@ -79,6 +79,11 @@ export function DashboardPage() {
     void load();
   }
 
+  async function resetCircuitBreaker() {
+    await apiPost('/api/admin/system/circuit-breaker/reset', {});
+    void load();
+  }
+
   return (
     <>
       <AppHeader />
@@ -95,7 +100,14 @@ export function DashboardPage() {
                 <span className={`badge ${status.emergencyStop ? 'badge-danger' : 'badge-success'}`}>
                   {status.emergencyStop ? '緊急停止中' : '系統運作中'}
                 </span>
-                <span className="badge badge-neutral">熔斷器：{status.circuitBreakerStatus}</span>
+                <span className={`badge ${status.circuitBreakerStatus === 'closed' ? 'badge-neutral' : 'badge-danger'}`}>
+                  熔斷器：{status.circuitBreakerStatus === 'closed' ? '正常' : '已熔斷'}
+                </span>
+                {status.circuitBreakerStatus !== 'closed' ? (
+                  <button className="btn btn-sm btn-primary" onClick={resetCircuitBreaker}>
+                    熔斷復歸
+                  </button>
+                ) : null}
                 <span className="muted-inline">
                   今日 · 符合 {status.today.matched}｜公開回覆 {status.today.publicReplySuccess}｜DM {status.today.dmSuccess}｜失敗 {status.today.failures}
                 </span>
