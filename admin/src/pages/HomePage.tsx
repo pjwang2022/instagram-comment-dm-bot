@@ -11,11 +11,16 @@ interface StatCounts {
   dmSuccess: number;
   failures: number;
 }
-interface DailyStat {
-  date: string;
+interface SeriesPoint {
+  label: string;
   matched: number;
   dmSuccess: number;
   failures: number;
+}
+interface TrendSeries {
+  daily: SeriesPoint[];
+  weekly: SeriesPoint[];
+  monthly: SeriesPoint[];
 }
 interface Status {
   emergencyStop: boolean;
@@ -23,7 +28,7 @@ interface Status {
   account: { username: string | null; profilePictureUrl: string | null } | null;
   today: StatCounts;
   total: StatCounts;
-  daily: DailyStat[];
+  series: TrendSeries;
 }
 interface Media {
   id: string;
@@ -96,47 +101,181 @@ function Thumb({ url, type }: { url: string | null; type: string }) {
   );
 }
 
-// 近 14 天成效趨勢：純 SVG 群組長條圖（符合＝主色、DM＝綠色、有失敗的日子在下方標紅點）。
-// 滑鼠懸停任一天可看該日數字（<title> 原生 tooltip）。
-function DailyChart({ daily }: { daily: DailyStat[] }) {
-  const H = 96;
-  const BW = 9;
-  const GROUP = BW * 2 + 2 + 10;
-  const W = daily.length * GROUP;
-  const max = Math.max(1, ...daily.map((d) => Math.max(d.matched, d.dmSuccess)));
-  const bar = (v: number) => Math.max(v > 0 ? 2 : 1, Math.round((v / max) * H));
+// DM 成效趨勢折線圖（Tremor 風格）：面積漸層＋細橫向格線＋hover tooltip，日/週/月切換。
+type TrendPeriod = 'daily' | 'weekly' | 'monthly';
+
+const PERIOD_META: Record<TrendPeriod, { label: string; range: string; tickEvery: number }> = {
+  daily: { label: '日', range: '近 30 天', tickEvery: 7 },
+  weekly: { label: '週', range: '近 12 週', tickEvery: 2 },
+  monthly: { label: '月', range: '近 12 個月', tickEvery: 2 },
+};
+
+// Y 軸最大值取「好看的整數」且中線刻度也是整數：2/4/5/10 × 10^k。
+function niceCeil(v: number): number {
+  if (v <= 2) return 2;
+  const pow = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [2, 4, 5, 10]) {
+    if (m * pow >= v) return m * pow;
+  }
+  return 10 * pow;
+}
+
+function tickLabel(period: TrendPeriod, label: string): string {
+  if (period === 'monthly') {
+    const [, m] = label.split('-');
+    return `${Number(m)}月`;
+  }
+  const [, m, d] = label.split('-');
+  return `${Number(m)}/${Number(d)}`;
+}
+
+function tooltipTitle(period: TrendPeriod, label: string): string {
+  const [y, m, d] = label.split('-');
+  if (period === 'monthly') return `${y} 年 ${Number(m)} 月`;
+  if (period === 'weekly') return `${Number(m)}/${Number(d)} 起的一週`;
+  return `${y}/${Number(m)}/${Number(d)}`;
+}
+
+function DmTrendChart({ series }: { series: TrendSeries }) {
+  const [period, setPeriod] = useState<TrendPeriod>('daily');
+  const [hover, setHover] = useState<number | null>(null);
+  const data = series[period];
+  const n = data.length;
+
+  // 固定 viewBox 座標系，寬度以百分比縮放；tooltip 用同一座標系換算成百分比定位。
+  const W = 640;
+  const H = 200;
+  const PAD_L = 40;
+  const PAD_R = 12;
+  const PAD_T = 10;
+  const PAD_B = 26;
+  const innerW = W - PAD_L - PAD_R;
+  const innerH = H - PAD_T - PAD_B;
+
+  const maxVal = Math.max(0, ...data.map((p) => p.dmSuccess));
+  const yMax = niceCeil(maxVal);
+  const xAt = (i: number) => PAD_L + (n === 1 ? innerW / 2 : (i * innerW) / (n - 1));
+  const yAt = (v: number) => PAD_T + innerH * (1 - v / yMax);
+
+  const linePath = data
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${xAt(i).toFixed(1)},${yAt(p.dmSuccess).toFixed(1)}`)
+    .join(' ');
+  const areaPath = `${linePath} L${xAt(n - 1).toFixed(1)},${PAD_T + innerH} L${xAt(0).toFixed(1)},${
+    PAD_T + innerH
+  } Z`;
+
+  const totalDm = data.reduce((s, p) => s + p.dmSuccess, 0);
+  const ticks = [0, yMax / 2, yMax];
+  const { tickEvery } = PERIOD_META[period];
+
+  function onMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const vx = ((e.clientX - rect.left) / rect.width) * W;
+    const step = n === 1 ? innerW : innerW / (n - 1);
+    const idx = Math.min(n - 1, Math.max(0, Math.round((vx - PAD_L) / step)));
+    setHover(idx);
+  }
+
+  const hovered = hover != null ? data[hover] : null;
+
   return (
     <div className="chart-card">
       <div className="chart-head">
-        <span className="chart-title">近 14 天成效</span>
-        <span className="chart-legend">
-          <i className="legend-dot is-matched" />符合
-          <i className="legend-dot is-dm" />DM 成功
-          <i className="legend-dot is-fail" />有失敗
-        </span>
+        <div>
+          <div className="chart-label">DM 次數</div>
+          <div className="chart-kpi">
+            {totalDm.toLocaleString()}
+            <span className="chart-range">{PERIOD_META[period].range}</span>
+          </div>
+        </div>
+        <div className="seg" role="tablist" aria-label="趨勢圖時間粒度">
+          {(Object.keys(PERIOD_META) as TrendPeriod[]).map((p) => (
+            <button
+              key={p}
+              role="tab"
+              aria-selected={period === p}
+              className={period === p ? 'is-active' : ''}
+              onClick={() => {
+                setPeriod(p);
+                setHover(null);
+              }}
+            >
+              {PERIOD_META[p].label}
+            </button>
+          ))}
+        </div>
       </div>
-      <svg viewBox={`0 0 ${W} ${H + 22}`} className="chart-svg" role="img" aria-label="近 14 天成效趨勢圖">
-        {daily.map((d, i) => {
-          const x = i * GROUP;
-          const mh = bar(d.matched);
-          const dh = bar(d.dmSuccess);
-          return (
-            <g key={d.date}>
-              <title>{`${d.date}｜符合 ${d.matched}・DM ${d.dmSuccess}${d.failures > 0 ? `・失敗 ${d.failures}` : ''}`}</title>
-              {/* 懸停熱區 */}
-              <rect x={x - 2} y={0} width={GROUP - 4} height={H + 22} fill="transparent" />
-              <rect x={x} y={H - mh} width={BW} height={mh} rx={2} className="bar-matched" />
-              <rect x={x + BW + 2} y={H - dh} width={BW} height={dh} rx={2} className="bar-dm" />
-              {d.failures > 0 ? <circle cx={x + BW} cy={H + 8} r={3} className="bar-fail" /> : null}
-              {i % 2 === 1 ? (
-                <text x={x + BW} y={H + 19} textAnchor="middle" className="chart-tick">
-                  {d.date.slice(5).replace('-', '/')}
-                </text>
-              ) : null}
+
+      <div className="chart-plot" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" role="img" aria-label="DM 次數趨勢圖">
+          <defs>
+            <linearGradient id="dm-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--primary-500)" stopOpacity="0.16" />
+              <stop offset="100%" stopColor="var(--primary-500)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* 橫向格線＋Y 軸刻度（無軸線，Tremor 式） */}
+          {ticks.map((t) => (
+            <g key={t}>
+              <line
+                x1={PAD_L}
+                x2={W - PAD_R}
+                y1={yAt(t)}
+                y2={yAt(t)}
+                className="chart-grid"
+              />
+              <text x={PAD_L - 8} y={yAt(t) + 3.5} textAnchor="end" className="chart-tick">
+                {t.toLocaleString()}
+              </text>
             </g>
-          );
-        })}
-      </svg>
+          ))}
+
+          {/* X 軸刻度（稀疏，從最後一點往回取） */}
+          {data.map((p, i) =>
+            (n - 1 - i) % tickEvery === 0 ? (
+              <text key={p.label} x={xAt(i)} y={H - 8} textAnchor="middle" className="chart-tick">
+                {tickLabel(period, p.label)}
+              </text>
+            ) : null,
+          )}
+
+          <path d={areaPath} fill="url(#dm-area)" />
+          <path d={linePath} className="chart-line" />
+
+          {/* hover：垂直導引線＋資料點 */}
+          {hovered && hover != null ? (
+            <g>
+              <line
+                x1={xAt(hover)}
+                x2={xAt(hover)}
+                y1={PAD_T}
+                y2={PAD_T + innerH}
+                className="chart-guide"
+              />
+              <circle cx={xAt(hover)} cy={yAt(hovered.dmSuccess)} r={4.5} className="chart-dot" />
+            </g>
+          ) : null}
+        </svg>
+
+        {hovered && hover != null ? (
+          <div
+            className="chart-tooltip"
+            style={{
+              left: `${(xAt(hover) / W) * 100}%`,
+              top: `${(yAt(hovered.dmSuccess) / H) * 100}%`,
+            }}
+          >
+            <div className="chart-tooltip-title">{tooltipTitle(period, hovered.label)}</div>
+            <div className="chart-tooltip-row">
+              <i className="legend-dot is-dm-line" />DM <strong>{hovered.dmSuccess.toLocaleString()}</strong> 次
+            </div>
+            <div className="chart-tooltip-row is-muted">符合 {hovered.matched.toLocaleString()}</div>
+          </div>
+        ) : null}
+
+        {totalDm === 0 ? <div className="chart-empty">{PERIOD_META[period].range}尚無 DM 紀錄</div> : null}
+      </div>
     </div>
   );
 }
@@ -351,7 +490,7 @@ export function HomePage() {
           </div>
         ) : null}
 
-        {status && status.daily?.some((d) => d.matched > 0) ? <DailyChart daily={status.daily} /> : null}
+        {status?.series ? <DmTrendChart series={status.series} /> : null}
 
         {status && status.circuitBreakerStatus === 'open' ? (
           <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>

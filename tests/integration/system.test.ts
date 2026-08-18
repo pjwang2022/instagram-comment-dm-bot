@@ -149,8 +149,8 @@ describe('status — today（台北時區）與 total 統計', () => {
     expect(status.today.publicReplySuccess).toBe(0);
   });
 });
-describe('status — daily 近 14 天逐日統計', () => {
-  it('returns 14 days with runs bucketed by Taipei date', async () => {
+describe('status — series 日/週/月 DM 趨勢序列', () => {
+  it('returns daily(30)/weekly(12)/monthly(12) with runs bucketed by Taipei date', async () => {
     const db = drizzle(sqlite, { schema });
     await db.insert(schema.automationRuns).values({
       id: 'run-1',
@@ -161,13 +161,16 @@ describe('status — daily 近 14 天逐日統計', () => {
       privateReplyStatus: 'success',
     });
     const status = await (await createApp().fetch(get('/status'), env)).json();
-    expect(status.daily).toHaveLength(14);
-    const last = status.daily[13];
-    expect(last.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(last.matched).toBe(1);
-    expect(last.dmSuccess).toBe(1);
-    expect(last.failures).toBe(0);
-    // 很久以前的 run 不會出現在近 14 天
-    expect(status.daily.slice(0, 13).every((d: { matched: number }) => d.matched === 0)).toBe(true);
+    expect(status.series.daily).toHaveLength(30);
+    expect(status.series.weekly).toHaveLength(12);
+    expect(status.series.monthly).toHaveLength(12);
+    // 今天的 run 落在每個粒度的最後一桶
+    expect(status.series.daily[29].dmSuccess).toBe(1);
+    expect(status.series.weekly[11].dmSuccess).toBe(1);
+    expect(status.series.monthly[11].dmSuccess).toBe(1);
+    expect(status.series.daily[29].label).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(status.series.monthly[11].label).toMatch(/^\d{4}-\d{2}$/);
+    // 很久以前的 run 不會出現在近 30 天
+    expect(status.series.daily.slice(0, 29).every((d: { dmSuccess: number }) => d.dmSuccess === 0)).toBe(true);
   });
 });
