@@ -29,6 +29,8 @@ export async function bindNextPostAutomation(
   db: SchemaDb,
   media: MediaRow,
 ): Promise<AutomationRow | null> {
+  // 限時動態不參與 next_post 綁定——待命自動化的語意是「下一篇新貼文」。
+  if (media.mediaType === 'STORY') return null;
   // 已有專屬自動化的貼文不重複綁定（讓本函式對兩個呼叫端——engine 與同步——都冪等）。
   const existingForMedia = await db
     .select()
