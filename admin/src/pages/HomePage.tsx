@@ -5,11 +5,18 @@ import { useNavigate } from 'react-router';
 import { AppHeader } from '../components/AppHeader';
 import { apiGet, apiPost, type ApiError } from '../api/client';
 
+interface StatCounts {
+  matched: number;
+  publicReplySuccess: number;
+  dmSuccess: number;
+  failures: number;
+}
 interface Status {
   emergencyStop: boolean;
   circuitBreakerStatus: string;
   account: { username: string | null; profilePictureUrl: string | null } | null;
-  today: { matched: number; publicReplySuccess: number; dmSuccess: number; failures: number };
+  today: StatCounts;
+  total: StatCounts;
 }
 interface Media {
   id: string;
@@ -63,12 +70,6 @@ function TypeIcon({ type }: { type: string }) {
   return null;
 }
 
-function StatusTag({ status }: { status: string }) {
-  if (status === 'paused') return <span className="badge badge-warning">已暫停</span>;
-  if (status === 'draft') return <span className="badge badge-neutral">草稿</span>;
-  return null;
-}
-
 function Thumb({ url, type }: { url: string | null; type: string }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -119,6 +120,7 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<string[]>([]);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -181,6 +183,33 @@ export function HomePage() {
     void load();
   }
 
+  // 貼文右上角的自動化開關：active ↔ paused。草稿啟用失敗（設定不完整）時提示點進去補。
+  async function toggleAutomation(m: Media) {
+    if (!m.automationId) {
+      openEditor(m);
+      return;
+    }
+    setTogglingId(m.id);
+    setError(null);
+    try {
+      if (m.automationStatus === 'active') {
+        await apiPost(`/api/admin/automations/${m.automationId}/pause`, {});
+      } else {
+        await apiPost(`/api/admin/automations/${m.automationId}/activate`, {});
+      }
+      await load();
+    } catch (e) {
+      const err = e as ApiError;
+      setError(
+        err.status === 422
+          ? '無法啟用：這則自動化的設定不完整（點進貼文檢查關鍵字與回覆內容）'
+          : err.message,
+      );
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   // 限動與貼文分流；成效數據以 media id 對 overview join。
   const stories = media.filter((m) => m.mediaType === 'STORY');
   const posts = media.filter((m) => m.mediaType !== 'STORY');
@@ -231,11 +260,21 @@ export function HomePage() {
                 </span>
               </div>
               <div className="profile-stats">
-                <span>今日符合 <strong>{status.today.matched}</strong></span>
-                <span>公開回覆 <strong>{status.today.publicReplySuccess}</strong></span>
-                <span>DM <strong>{status.today.dmSuccess}</strong></span>
-                <span className={status.today.failures > 0 ? 'is-danger' : ''}>
-                  失敗 <strong>{status.today.failures}</strong>
+                <span>
+                  符合 <strong>{status.total.matched}</strong>
+                  <em className="stat-sub">今日 {status.today.matched}</em>
+                </span>
+                <span>
+                  公開回覆 <strong>{status.total.publicReplySuccess}</strong>
+                  <em className="stat-sub">今日 {status.today.publicReplySuccess}</em>
+                </span>
+                <span>
+                  DM <strong>{status.total.dmSuccess}</strong>
+                  <em className="stat-sub">今日 {status.today.dmSuccess}</em>
+                </span>
+                <span className={status.total.failures > 0 ? 'is-danger' : ''}>
+                  失敗 <strong>{status.total.failures}</strong>
+                  <em className="stat-sub">今日 {status.today.failures}</em>
                 </span>
               </div>
             </div>
@@ -253,35 +292,32 @@ export function HomePage() {
           </div>
         ) : null}
 
-        {status && status.circuitBreakerStatus !== 'closed' ? (
+        {status && status.circuitBreakerStatus === 'open' ? (
           <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>
-            熔斷器已開啟——已暫停所有發送。
+            熔斷器已「自動」開啟：系統偵測到連續 Meta API 失敗，暫停所有發送以保護你的帳號（不是你操作的）。
+            確認 Instagram 沒有異常後，按「熔斷復歸」恢復發送。
             <button className="btn btn-sm btn-primary" style={{ marginLeft: 'var(--space-3)' }} onClick={resetCircuitBreaker}>
               熔斷復歸
             </button>
           </div>
         ) : null}
 
-        {/* 待命／全帳號預設 */}
-        <div className="pending-row">
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/automations/new?scope=next_post')}>
-            ＋ 待命自動化
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/automations/new?scope=account_default')}>
-            ＋ 全帳號預設
-          </button>
-          {pendingAutomations.map((a) => (
-            <button
-              key={a.automationId}
-              type="button"
-              className="chip chip-clickable"
-              onClick={() => navigate(`/automations/new?scope=${a.applyScope}&automationId=${a.automationId}`)}
-            >
-              {a.applyScope === 'next_post' ? '待綁定' : '全帳號'}｜{a.name}
-              {a.status === 'active' ? ' ⚡' : a.status === 'paused' ? '（暫停）' : '（草稿）'}
-            </button>
-          ))}
-        </div>
+        {/* 既有的待命／全帳號預設（新增入口在頁首導覽的「＋ 新增自動化」） */}
+        {pendingAutomations.length > 0 ? (
+          <div className="pending-row">
+            {pendingAutomations.map((a) => (
+              <button
+                key={a.automationId}
+                type="button"
+                className="chip chip-clickable"
+                onClick={() => navigate(`/automations/new?scope=${a.applyScope}&automationId=${a.automationId}`)}
+              >
+                {a.applyScope === 'next_post' ? '待綁定' : '全帳號'}｜{a.name}
+                {a.status === 'active' ? '（啟用中）' : a.status === 'paused' ? '（暫停）' : '（草稿）'}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {/* 限動圓圈列 */}
         <div className="story-row">
@@ -314,24 +350,30 @@ export function HomePage() {
                 <div className="media-card" key={m.id}>
                   <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => openEditor(m)}>
                     <Thumb url={m.thumbnailUrl} type={m.mediaType} />
-                    {m.automationStatus === 'active' ? (
-                      <span className="media-flash" title="自動化啟用中">⚡</span>
-                    ) : m.automationStatus !== 'none' ? (
-                      <span className="media-status-tag">
-                        <StatusTag status={m.automationStatus} />
-                      </span>
+                    {m.automationId ? (
+                      <button
+                        type="button"
+                        className={`switch${m.automationStatus === 'active' ? ' is-on' : ''}`}
+                        disabled={togglingId === m.id}
+                        title={m.automationStatus === 'active' ? '自動回覆啟用中——點擊暫停' : '點擊啟用自動回覆'}
+                        aria-label="自動回覆開關"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void toggleAutomation(m);
+                        }}
+                      />
                     ) : null}
                   </div>
                   <div className="media-card-body">
-                    <div className={`media-caption${m.caption ? '' : ' is-empty'}`}>
-                      {m.caption ?? '（無說明文字）'}
-                    </div>
                     {stats ? (
                       <div className="media-stats-line">
-                        觸發 {stats.triggered} · DM {stats.dmSuccess}
+                        觸發 <strong>{stats.triggered}</strong> · DM <strong>{stats.dmSuccess}</strong>
                         {stats.failures > 0 ? <span className="is-danger"> · 失敗 {stats.failures}</span> : null}
                       </div>
                     ) : null}
+                    <div className={`media-caption${m.caption ? '' : ' is-empty'}`}>
+                      {m.caption ?? '（無說明文字）'}
+                    </div>
                     <div className="media-card-footer">
                       {m.permalink ? (
                         <a className="media-permalink" href={m.permalink} target="_blank" rel="noreferrer">

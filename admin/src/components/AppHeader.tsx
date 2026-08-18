@@ -1,4 +1,4 @@
-// 共用頁首：品牌 + 首頁導覽 + 目前登入者 + 登出。
+// 共用頁首：品牌（點擊回首頁）＋「新增自動化」下拉＋目前登入者＋登出。
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { apiGet, apiPost } from '../api/client';
@@ -6,6 +6,7 @@ import { apiGet, apiPost } from '../api/client';
 export function AppHeader() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     apiGet<{ email: string }>('/api/admin/auth/me')
@@ -22,17 +23,39 @@ export function AppHeader() {
     navigate('/login');
   }
 
+  function goNew(scope: 'next_post' | 'account_default') {
+    setMenuOpen(false);
+    navigate(`/automations/new?scope=${scope}`);
+  }
+
   return (
     <header className="app-header">
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div className="app-brand">
+        <NavLink to="/" className="app-brand">
           <span className="dot" />
           Instagram Comment DM Bot
-        </div>
+        </NavLink>
         <nav className="app-nav">
-          <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
-            首頁
-          </NavLink>
+          <div className="nav-menu">
+            <button className="btn btn-primary btn-sm" onClick={() => setMenuOpen((o) => !o)}>
+              ＋ 新增自動化
+            </button>
+            {menuOpen ? (
+              <>
+                <div className="nav-menu-backdrop" onClick={() => setMenuOpen(false)} />
+                <div className="nav-dropdown">
+                  <button type="button" onClick={() => goNew('next_post')}>
+                    <strong>待命自動化</strong>
+                    <span>下一篇新貼文上線自動接上，第一則留言也不會漏</span>
+                  </button>
+                  <button type="button" onClick={() => goNew('account_default')}>
+                    <strong>全帳號預設</strong>
+                    <span>沒有專屬自動化的貼文一律套用這組設定</span>
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
         </nav>
       </div>
       <div className="app-header-right">

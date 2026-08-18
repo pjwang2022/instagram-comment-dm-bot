@@ -1021,7 +1021,8 @@ POST /api/admin/auth/logout
 GET /api/admin/system/status
 ```
 
-回傳含 `account`（`{ username, profilePictureUrl }`，無帳號時為 `null`），供首頁 IG 個人頁式頁首顯示。
+回傳含 `account`（`{ username, profilePictureUrl }`，無帳號時為 `null`），供首頁 IG 個人頁式頁首顯示；
+統計含 `total`（累計）與 `today`（以台北時區 UTC+8 為日界）兩組 `{ matched, publicReplySuccess, dmSuccess, failures }`。
 
 ## 16.4 緊急停止
 

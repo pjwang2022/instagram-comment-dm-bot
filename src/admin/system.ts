@@ -1,5 +1,5 @@
 // 系統控制 Admin API（spec.md 第 16.3–16.5 節）：緊急停止/恢復、系統狀態。
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppBindings } from '../app';
 import { createDb } from '../database/client';
@@ -53,18 +53,21 @@ export function createSystemRoutes() {
     const settings = await ensureSettings(db);
     const accounts = await db.select().from(instagramAccounts).limit(1);
 
-    // 今日統計（以 automation_runs.created_at 當天）
-    const todayPrefix = new Date().toISOString().slice(0, 10);
-    const runs = await db
-      .select()
-      .from(automationRuns)
-      .where(sql`substr(${automationRuns.createdAt}, 1, 10) = ${todayPrefix}`);
+    // 「今日」以台北時區（UTC+8）為界——created_at 存 UTC ISO 字串，取台北當日 00:00
+    // 對應的 UTC 時刻當下界後用字串比較（ISO UTC 字串的字典序＝時間序）。
+    // 用 UTC 日界會讓台北早上 8 點前的觸發被算到「昨天」，頁首顯示 0 造成誤判。
+    const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
+    const taipeiDay = new Date(Date.now() + TAIPEI_OFFSET_MS).toISOString().slice(0, 10);
+    const dayStartUtc = new Date(Date.parse(`${taipeiDay}T00:00:00Z`) - TAIPEI_OFFSET_MS).toISOString();
 
-    const publicSuccess = runs.filter((r: { publicReplyStatus: string | null }) => r.publicReplyStatus === 'success').length;
-    const dmSuccess = runs.filter((r: { privateReplyStatus: string | null }) => r.privateReplyStatus === 'success').length;
-    const failures = runs.filter(
-      (r: { status: string }) => r.status === 'completed_with_errors',
-    ).length;
+    const runs = await db.select().from(automationRuns);
+    const todayRuns = runs.filter((r: { createdAt: string }) => r.createdAt >= dayStartUtc);
+    const countStats = (rows: Array<{ publicReplyStatus: string | null; privateReplyStatus: string | null; status: string }>) => ({
+      matched: rows.length,
+      publicReplySuccess: rows.filter((r) => r.publicReplyStatus === 'success').length,
+      dmSuccess: rows.filter((r) => r.privateReplyStatus === 'success').length,
+      failures: rows.filter((r) => r.status === 'completed_with_errors').length,
+    });
 
     return c.json({
       emergencyStop: settings.emergencyStop === 1,
@@ -75,12 +78,8 @@ export function createSystemRoutes() {
         : null,
       tokenExpiresAt: accounts[0]?.tokenExpiresAt ?? null,
       lastWebhookReceivedAt: accounts[0]?.lastWebhookReceivedAt ?? null,
-      today: {
-        matched: runs.length,
-        publicReplySuccess: publicSuccess,
-        dmSuccess,
-        failures,
-      },
+      today: countStats(todayRuns),
+      total: countStats(runs),
     });
   });
 

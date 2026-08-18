@@ -121,3 +121,31 @@ describe('status — account info', () => {
     expect(status.account).toBeNull();
   });
 });
+describe('status — today（台北時區）與 total 統計', () => {
+  it('counts old runs in total but not in today', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.automationRuns).values({
+      id: 'run-old',
+      automationId: 'auto',
+      instagramCommentId: 'c-old',
+      instagramMediaId: 'ig-media',
+      status: 'completed',
+      publicReplyStatus: 'success',
+      privateReplyStatus: 'success',
+      createdAt: '2020-01-01T00:00:00.000Z',
+    });
+    await db.insert(schema.automationRuns).values({
+      id: 'run-now',
+      automationId: 'auto',
+      instagramCommentId: 'c-now',
+      instagramMediaId: 'ig-media',
+      status: 'completed',
+      privateReplyStatus: 'success',
+    });
+    const status = await (await createApp().fetch(get('/status'), env)).json();
+    expect(status.total.matched).toBe(2);
+    expect(status.total.dmSuccess).toBe(2);
+    expect(status.today.matched).toBe(1);
+    expect(status.today.publicReplySuccess).toBe(0);
+  });
+});
