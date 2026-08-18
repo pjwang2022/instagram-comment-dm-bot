@@ -55,3 +55,33 @@ describe('validateActivation', () => {
     expect(validateActivation({ ...ok, tokenHealthy: false })).toContain('token_unhealthy');
   });
 });
+
+describe('validateActivation — story automations', () => {
+  const base = {
+    automationExists: true,
+    matchType: 'contains_any',
+    keywordCount: 1,
+    publicReplyEnabled: false,
+    privateReplyEnabled: true,
+    openingDm: '連結在這',
+    buttonUrl: null,
+    tokenHealthy: true,
+    emergencyStop: false,
+  };
+
+  it('accepts a story automation with only private reply', () => {
+    expect(validateActivation({ ...base, isStory: true })).toEqual([]);
+  });
+
+  it('requires private reply for story automations', () => {
+    expect(
+      validateActivation({ ...base, isStory: true, privateReplyEnabled: false }),
+    ).toContain('private_reply_required_for_story');
+  });
+
+  it('still requires at least one reply for non-story automations', () => {
+    expect(
+      validateActivation({ ...base, privateReplyEnabled: false }),
+    ).toContain('at_least_one_reply_required');
+  });
+});

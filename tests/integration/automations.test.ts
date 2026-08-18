@@ -151,3 +151,112 @@ describe('scoped automations（next_post / account_default）', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('GET /overview（列表）', () => {
+  it('hides automations bound to IG-deleted media', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.instagramMedia).values({
+      id: 'media-del',
+      instagramAccountId: 'acct',
+      instagramMediaId: 'ig-media-del',
+      mediaType: 'IMAGE',
+      deletedAt: '2026-08-06T00:00:00Z',
+    });
+    await db.insert(schema.automations).values([
+      { id: 'auto-live', instagramMediaId: 'media', name: '正常', status: 'active' },
+      { id: 'auto-del', instagramMediaId: 'media-del', name: '已刪貼文', status: 'paused' },
+    ]);
+
+    const app = createApp();
+    const res = await app.fetch(
+      new Request('https://igbot.example.com/api/admin/automations/overview', {
+        headers: { Cookie: cookie },
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { automations: { automationId: string }[] };
+    expect(body.automations.map((a) => a.automationId)).toEqual(['auto-live']);
+  });
+});
+
+describe('story automations（media_type = STORY）', () => {
+  it('activates with only private reply enabled', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.instagramMedia).values({
+      id: 'story',
+      instagramAccountId: 'acct',
+      instagramMediaId: 'ig-story',
+      mediaType: 'STORY',
+    });
+    const app = createApp();
+    const created = await app.fetch(
+      req('', {
+        instagramMediaId: 'story',
+        name: '限動',
+        keywords: ['連結'],
+        publicReplyEnabled: false,
+        privateReplyEnabled: true,
+        openingDm: '這是連結',
+      }),
+      env,
+    );
+    const { id } = (await created.json()) as { id: string };
+    const ok = await app.fetch(req(`/${id}/activate`), env);
+    expect(ok.status).toBe(200);
+    const auto = (await db.select().from(schema.automations)).find((a) => a.id === id);
+    expect(auto?.status).toBe('active');
+  });
+
+  it('rejects activation when private reply is disabled', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.instagramMedia).values({
+      id: 'story',
+      instagramAccountId: 'acct',
+      instagramMediaId: 'ig-story',
+      mediaType: 'STORY',
+    });
+    const app = createApp();
+    const created = await app.fetch(
+      req('', {
+        instagramMediaId: 'story',
+        name: '限動',
+        keywords: ['連結'],
+        publicReplyEnabled: false,
+        privateReplyEnabled: false,
+      }),
+      env,
+    );
+    const { id } = (await created.json()) as { id: string };
+    const res = await app.fetch(req(`/${id}/activate`), env);
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { reasons: string[] };
+    expect(body.reasons).toContain('private_reply_required_for_story');
+  });
+
+  it('returns bound media info on GET /:id', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.instagramMedia).values({
+      id: 'story',
+      instagramAccountId: 'acct',
+      instagramMediaId: 'ig-story',
+      mediaType: 'STORY',
+      thumbnailUrl: 'https://cdn/s.jpg',
+    });
+    const app = createApp();
+    const created = await app.fetch(
+      req('', { instagramMediaId: 'story', name: '限動', keywords: ['連結'], openingDm: 'x' }),
+      env,
+    );
+    const { id } = (await created.json()) as { id: string };
+    const res = await app.fetch(
+      new Request(`https://igbot.example.com/api/admin/automations/${id}`, {
+        headers: { Origin: 'https://igbot.example.com', Cookie: cookie },
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { media: { id: string; mediaType: string } | null };
+    expect(body.media).toMatchObject({ id: 'story', mediaType: 'STORY' });
+  });
+});

@@ -22,6 +22,8 @@ export interface ActivationCheckInput {
   buttonUrl: string | null;
   tokenHealthy: boolean;
   emergencyStop: boolean;
+  // 綁定的媒體是限時動態：沒有公開回覆，私訊是唯一動作。
+  isStory?: boolean;
 }
 
 // 啟用前驗證（spec.md 第 16.10 節）。回傳錯誤原因清單（空 = 可啟用）。
@@ -32,7 +34,10 @@ export function validateActivation(input: ActivationCheckInput): string[] {
   if (input.matchType !== 'all_comments' && input.keywordCount < 1) {
     errors.push('keywords_required');
   }
-  if (!input.publicReplyEnabled && !input.privateReplyEnabled) {
+  if (input.isStory) {
+    // 限動自動化沒有公開回覆，私訊是唯一動作，必須啟用。
+    if (!input.privateReplyEnabled) errors.push('private_reply_required_for_story');
+  } else if (!input.publicReplyEnabled && !input.privateReplyEnabled) {
     errors.push('at_least_one_reply_required');
   }
   if (input.privateReplyEnabled && (!input.openingDm || input.openingDm.trim() === '')) {

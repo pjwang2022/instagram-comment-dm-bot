@@ -152,6 +152,12 @@ export function createAutomationRoutes() {
     const mediaById = new Map(mediaRows.map((m: { id: string }) => [m.id, m]));
 
     const items = autos
+      // 綁定的貼文在 IG 上已刪除（同步時標記）→ 連同自動化一起隱藏，
+      // 與貼文列表的隱藏行為一致；發送紀錄仍保留於報表。
+      .filter((a: typeof automations.$inferSelect) => {
+        const media = a.instagramMediaId ? mediaById.get(a.instagramMediaId) : undefined;
+        return !(media as typeof instagramMedia.$inferSelect | undefined)?.deletedAt;
+      })
       .map((a: typeof automations.$inferSelect) => {
         const media = (a.instagramMediaId ? mediaById.get(a.instagramMediaId) : undefined) as
           | typeof instagramMedia.$inferSelect
@@ -208,8 +214,26 @@ export function createAutomationRoutes() {
       .select()
       .from(publicReplyVariants)
       .where(eq(publicReplyVariants.automationId, id));
+    // 綁定媒體的基本資訊（編輯器判斷限動模式與顯示縮圖用）。
+    const mediaRow = rows[0].instagramMediaId
+      ? ((
+          await db
+            .select()
+            .from(instagramMedia)
+            .where(eq(instagramMedia.id, rows[0].instagramMediaId))
+            .limit(1)
+        )[0] ?? null)
+      : null;
     return c.json({
       automation: rows[0],
+      media: mediaRow
+        ? {
+            id: mediaRow.id,
+            mediaType: mediaRow.mediaType,
+            caption: mediaRow.caption,
+            thumbnailUrl: mediaRow.thumbnailUrl,
+          }
+        : null,
       keywords: keywords.map((k: { keyword: string }) => k.keyword),
       publicReplyVariants: variants.map((v: { message: string }) => v.message),
     });
@@ -271,22 +295,23 @@ export function createAutomationRoutes() {
 
     // Token 健康度：以帳號的 circuit_breaker_status 粗略判斷（MVP）。
     // 未綁定貼文的自動化（next_post / account_default）直接看帳號本身。
+    // 綁定的媒體同時供 isStory 判斷（限動自動化的檢核規則不同）。
     let tokenHealthy = true;
+    let boundMedia: typeof instagramMedia.$inferSelect | null = null;
     if (automation) {
-      let accountInternalId: string | null = null;
       if (automation.instagramMediaId) {
         const media = await db
           .select()
           .from(instagramMedia)
           .where(eq(instagramMedia.id, automation.instagramMediaId))
           .limit(1);
-        accountInternalId = media[0]?.instagramAccountId ?? null;
+        boundMedia = media[0] ?? null;
       }
-      const acct = accountInternalId
+      const acct = boundMedia
         ? await db
             .select()
             .from(instagramAccounts)
-            .where(eq(instagramAccounts.id, accountInternalId))
+            .where(eq(instagramAccounts.id, boundMedia.instagramAccountId))
             .limit(1)
         : await db.select().from(instagramAccounts).limit(1);
       if (acct[0]) tokenHealthy = acct[0].circuitBreakerStatus === 'closed';
@@ -302,6 +327,7 @@ export function createAutomationRoutes() {
       buttonUrl: automation?.buttonUrl ?? null,
       tokenHealthy,
       emergencyStop: settings[0]?.emergencyStop === 1,
+      isStory: boundMedia?.mediaType === 'STORY',
     });
 
     if (errors.length > 0) {
