@@ -1,4 +1,4 @@
-// 共用頁首：品牌 + 導覽（儀表板/貼文）+ 目前登入者 + 登出。
+// 共用頁首：品牌 + 首頁導覽 + 目前登入者 + 登出。
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { apiGet, apiPost } from '../api/client';
@@ -31,10 +31,7 @@ export function AppHeader() {
         </div>
         <nav className="app-nav">
           <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
-            儀表板
-          </NavLink>
-          <NavLink to="/media" className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
-            貼文
+            首頁
           </NavLink>
         </nav>
       </div>
