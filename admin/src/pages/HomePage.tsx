@@ -189,6 +189,13 @@ export function HomePage() {
       openEditor(m);
       return;
     }
+    // 關閉是破壞性操作（正在跑的自動回覆會停），先確認避免誤按。
+    if (
+      m.automationStatus === 'active' &&
+      !window.confirm('確定要暫停這則貼文的自動回覆嗎？暫停後留言將不再自動回覆與私訊。')
+    ) {
+      return;
+    }
     setTogglingId(m.id);
     setError(null);
     try {
@@ -367,8 +374,11 @@ export function HomePage() {
                   <div className="media-card-body">
                     {stats ? (
                       <div className="media-stats-line">
-                        觸發 <strong>{stats.triggered}</strong> · DM <strong>{stats.dmSuccess}</strong>
-                        {stats.failures > 0 ? <span className="is-danger"> · 失敗 {stats.failures}</span> : null}
+                        <span>觸發 <strong>{stats.triggered.toLocaleString()}</strong></span>
+                        <span>DM <strong>{stats.dmSuccess.toLocaleString()}</strong></span>
+                        {stats.failures > 0 ? (
+                          <span className="is-danger">失敗 <strong>{stats.failures.toLocaleString()}</strong></span>
+                        ) : null}
                       </div>
                     ) : null}
                     <div className={`media-caption${m.caption ? '' : ' is-empty'}`}>

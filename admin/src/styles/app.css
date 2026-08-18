@@ -867,11 +867,20 @@ body {
   color: var(--color-text-muted);
 }
 
-/* ── 九宮格：成效數據是重點，放大加粗；說明文字退居次要 ── */
+/* ── 九宮格：成效數據是重點，放大加粗；說明文字退居次要 ──
+   flex 換行＋等寬數字：數字變大時整組往下折行，不會撐爆卡片或跑版。 */
 .media-stats-line {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+  row-gap: 2px;
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.media-stats-line span {
+  white-space: nowrap;
 }
 .media-stats-line strong {
   font-weight: var(--weight-bold);
@@ -959,6 +968,40 @@ body {
 .nav-dropdown button span {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
+}
+/* 貼齊右緣（頁首右側的下拉都用這個） */
+.nav-dropdown.is-right {
+  left: auto;
+  right: 0;
+}
+
+/* ── 使用者頭像按鈕與選單 ── */
+.avatar-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.12s ease;
+}
+.avatar-btn:hover {
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+.user-menu-email {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-1);
+  word-break: break-all;
 }
 
 /* ── 頁首統計的「今日」小字 ── */
