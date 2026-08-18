@@ -87,8 +87,14 @@ npm run deploy
 3. Configure the webhook subscription:
    - Callback URL: `https://<your-domain>/api/webhooks/meta/instagram`
    - Verify token: the same value you stored as `WEBHOOK_VERIFY_TOKEN`
-   - Subscribe to the **`comments`** field.
+   - Subscribe to the **`comments`** field, and the **`messages`** field if you want story-reply automations (限時動態自動化).
 4. App Review requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (the contact email shown is your admin account's email).
+
+#### Extra setup for story-reply automations（限時動態自動化）
+
+- The webhook subscription must include the **`messages`** field (only `reply_to.story` messages are processed; plain DMs are ignored).
+- The access token needs the `instagram_business_manage_messages` permission.
+- After configuring, verify end-to-end in production: reply to one of your stories with a keyword and confirm the automated DM arrives (Workers runtime restrictions do not reproduce under `wrangler dev` — see CLAUDE.md).
 
 ### 3. Create the admin account
 

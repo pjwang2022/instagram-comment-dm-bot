@@ -64,6 +64,7 @@ MVP 必須包含：
 14. Token、權限及政策錯誤自動停用。
 15. 全系統緊急停止功能。
 16. 管理者登入。
+17. 限時動態自動化：限動回應含關鍵字即自動私訊（逐則限動設定，見第 30 節）。
 
 ## 2.2 不包含功能
 
@@ -1020,6 +1021,8 @@ POST /api/admin/auth/logout
 GET /api/admin/system/status
 ```
 
+回傳含 `account`（`{ username, profilePictureUrl }`，無帳號時為 `null`），供首頁 IG 個人頁式頁首顯示。
+
 ## 16.4 緊急停止
 
 ```http
@@ -1053,6 +1056,8 @@ search
 ```http
 POST /api/admin/media/sync
 ```
+
+同步涵蓋貼文/Reels 與進行中的限時動態（見第 30 節）；回傳摘要含 `expiredStories`（本次標記為過期的限動數）。
 
 ## 16.8 建立自動化
 
@@ -1318,7 +1323,10 @@ Webhook 不使用一般 IP Rate Limit，以免誤擋 Meta，但必須驗證 Sign
 
 * 同步近期 Instagram 貼文及 Reels。
 * 更新 Caption、Thumbnail、Permalink。
-* 不刪除已存在的歷史紀錄。
+* IG 上已刪除的貼文：逐篇向 Meta 查證（GET /{media-id}），確認不存在才標記
+  `deleted_at`（軟刪除）並暫停綁定該貼文的 active 自動化；網路錯誤、限流、
+  token 失效不視為刪除證據。後台列表預設隱藏已刪除貼文（`?includeDeleted=1`
+  可查回），發送紀錄與歷史報表保留不動。貼文重新出現時自動解除標記。
 
 ## Token 檢查
 
@@ -1778,3 +1786,33 @@ Cloudflare 原生服務是否已經能解決？
 進階功能
 ```
 
+
+---
+
+# 30. 限時動態自動化
+
+限動回應含關鍵字即自動私訊指定內容。逐則限動設定；限動不套用待命（next_post）與全帳號預設（account_default）——那是留言的語意。
+
+## 30.1 資料模型
+
+* 限動重用 `instagram_media`，`media_type = 'STORY'`（同步時強制寫入；Meta `/stories` 回傳的 `media_type` 是 IMAGE/VIDEO，不可照抄）。
+* 過期判斷：不在 `GET /{ig-account-id}/stories` 清單＝已過期（此端點只回 24 小時內的限動，是權威來源）→ 標 `deleted_at` 並暫停綁定的 active 自動化。貼文的逐篇刪除查證不適用於 STORY。
+
+## 30.2 Webhook
+
+* Meta App 需訂閱 `messages` 欄位；token 需 `instagram_business_manage_messages` 權限。
+* 只接受帶 `entry[].messaging[].message.reply_to.story.id` 的事件；一般 DM 與 echo（`is_echo`）一律忽略。
+* 事件鍵＝訊息 `mid`（穩定 ID）；`webhook_events.event_type = 'story_reply'`、`instagram_media_id` ← story id、`instagram_comment_id` ← mid（欄位重用）。
+* 冪等、重送計數、Queue 流程與留言事件完全共用；Queue message 以 `eventType: 'story_reply'` 分流。
+
+## 30.3 執行引擎
+
+* 只套用綁定該限動的專屬 active 自動化（不 fallback）。
+* 關鍵字比對沿用正規化與 matcher；已過期限動（`deleted_at` 非 NULL）直接略過。
+* 沒有公開回覆（限動無留言串），`public_reply_status` 一律 `skipped`。
+* DM 的 recipient 用 `{ id: <回應者 IGSID> }`（限動回應已開啟 24 小時訊息窗）；留言路徑維持 `{ comment_id }`。
+* 限額 gate、每日上限、automation_runs／api_attempts、重試策略全部沿用（`instagram_comment_id` ← mid，unique 冪等成立）。
+
+## 30.4 啟用檢核
+
+* 限動自動化不要求公開回覆；`private_reply_enabled` 必須開啟，否則回 `private_reply_required_for_story`。
