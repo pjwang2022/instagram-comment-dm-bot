@@ -69,7 +69,7 @@ async function seedStoryAutomation(overrides: Partial<typeof schema.automations.
     id: 'kw1',
     automationId: 'auto',
     keyword: '連結',
-    normalizedKeyword: '連結',
+    normalizedKeyword: '连结',  // 正規形為簡體（繁簡互通）
   });
 }
 
