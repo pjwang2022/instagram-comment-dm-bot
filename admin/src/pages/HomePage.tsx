@@ -296,7 +296,7 @@ function StoryCircle({ story, active, onClick }: { story: Media; active: boolean
           <span className="story-fallback">限動</span>
         )}
       </span>
-      <span className="story-label">{active ? '⚡ 啟用中' : '設定'}</span>
+      <span className="story-label">{active ? '啟用中' : '設定'}</span>
     </button>
   );
 }
@@ -519,8 +519,13 @@ export function HomePage() {
                   className="chip chip-clickable"
                   onClick={() => navigate(`/automations/new?scope=${a.applyScope}&automationId=${a.automationId}`)}
                 >
+                  <i
+                    className={`status-dot ${
+                      a.status === 'active' ? 'is-on' : a.status === 'paused' ? 'is-paused' : 'is-draft'
+                    }`}
+                    title={a.status === 'active' ? '啟用中' : a.status === 'paused' ? '已暫停' : '草稿'}
+                  />
                   {a.applyScope === 'next_post' ? '待綁定' : '全帳號'}｜{a.name}
-                  {a.status === 'active' ? '（啟用中）' : a.status === 'paused' ? '（暫停）' : '（草稿）'}
                 </button>
               ))}
             </div>

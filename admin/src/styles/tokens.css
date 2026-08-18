@@ -34,6 +34,13 @@
   --neutral-fg: #475569;
   --neutral-bg: #f1f5f9;
 
+  /* ── 顏色角色規範（新元件一律照此選色，不得混用）──
+     動作（可點擊、會改變系統）→ primary 藍紫：按鈕、連結、圖表主線、focus ring
+     狀態·啟用/正常/成功      → success 綠：運作中 badge、toggle 開、限動啟用圈、成功警示
+     狀態·暫停/草稿/次要      → neutral 灰（暫停用 warning 琥珀）
+     危險動作與錯誤            → danger 紅：緊急停止、失敗數、錯誤警示
+     同一概念只能有一種顏色表達（例：「自動化啟用中」一律綠）。 */
+
   /* ── 語意 token（畫面用這層，不直接用色階）── */
   --color-bg: var(--slate-100);
   --color-surface: #ffffff;
@@ -92,9 +99,6 @@
   --danger-100: #fecaca;
   --overlay-strong: rgb(15 23 42 / 0.62);
   --overlay-soft: rgb(15 23 42 / 0.4);
-
-  /* ── 品牌漸層（IG 限動外框，僅此一處使用漸層）── */
-  --gradient-ig: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
 
   /* ── 極小字級（圖表刻度等 SVG 內文字專用）── */
   --text-2xs: 11px;

@@ -810,6 +810,9 @@ body {
   cursor: pointer;
   border: none;
   font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .chip-clickable:hover {
   background: var(--primary-100);
@@ -845,9 +848,9 @@ body {
   background: var(--slate-200);
   display: block;
 }
-/* IG 式漸層外框＝自動化啟用中 */
+/* 綠圈＝自動化啟用中（與 toggle 開、「運作中」badge 同一狀態色） */
 .story-circle.is-active .story-ring {
-  background: var(--gradient-ig);
+  background: var(--success-fg);
 }
 .story-ring img,
 .story-fallback {
@@ -866,6 +869,28 @@ body {
 .story-label {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
+}
+.story-circle.is-active .story-label {
+  color: var(--success-fg);
+  font-weight: var(--weight-semibold);
+}
+
+/* ── 狀態小圓點（chips 等窄空間的狀態表達，同一套狀態色） ── */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.status-dot.is-on {
+  background: var(--success-fg);
+}
+.status-dot.is-paused {
+  background: var(--warning-fg);
+}
+.status-dot.is-draft {
+  background: var(--slate-300);
 }
 
 /* ── 九宮格：成效數據是重點，放大加粗；說明文字退居次要 ──
