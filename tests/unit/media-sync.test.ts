@@ -1,10 +1,11 @@
 import { join } from 'path';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../../src/database/schema';
 import { MetaClient } from '../../src/meta/client';
-import { ensureAccountRegistered, syncMediaItems } from '../../src/meta/media';
+import { ensureAccountRegistered, markDeletedMedia, syncMediaItems } from '../../src/meta/media';
 import { applyMigrations } from '../helpers/d1-shim';
 
 function mockFetch(status: number, body: unknown) {
@@ -12,6 +13,26 @@ function mockFetch(status: number, body: unknown) {
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }),
   ) as unknown as typeof fetch;
 }
+
+// 依 URL 中的 media id 回應不同結果，模擬逐篇查證。
+function mockFetchByMediaId(responses: Record<string, { status: number; body: unknown }>) {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    for (const [id, r] of Object.entries(responses)) {
+      if (url.includes(`/${id}?`)) {
+        return new Response(JSON.stringify(r.body), {
+          status: r.status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+    throw new Error(`unexpected fetch: ${url}`);
+  }) as unknown as typeof fetch;
+}
+
+const NOT_FOUND_BODY = {
+  error: { message: 'Unsupported get request. Object does not exist', code: 100 },
+};
 
 function metaClient(fetchImpl: typeof fetch) {
   return new MetaClient({ accessToken: 'tok', graphApiVersion: 'v21.0', fetchImpl });
@@ -51,6 +72,95 @@ describe('syncMediaItems', () => {
   it('skips items with no id', async () => {
     const r = await syncMediaItems(db, 'acct', [{ id: '' }, { id: 'm3' }]);
     expect(r.inserted).toBe(1);
+  });
+
+  it('clears deleted_at when a previously deleted media reappears in the feed', async () => {
+    await syncMediaItems(db, 'acct', [{ id: 'm1', media_type: 'IMAGE' }]);
+    await db
+      .update(schema.instagramMedia)
+      .set({ deletedAt: '2026-08-01T00:00:00Z' })
+      .where(eq(schema.instagramMedia.instagramMediaId, 'm1'));
+
+    await syncMediaItems(db, 'acct', [{ id: 'm1', media_type: 'IMAGE' }]);
+    const rows = await db.select().from(schema.instagramMedia);
+    expect(rows[0].deletedAt).toBeNull();
+  });
+});
+
+describe('markDeletedMedia（IG 已刪貼文偵測）', () => {
+  async function seedMedia(instagramMediaId: string) {
+    await syncMediaItems(db, 'acct', [{ id: instagramMediaId, media_type: 'IMAGE' }]);
+  }
+
+  it('marks media missing from the feed after Meta confirms it no longer exists', async () => {
+    await seedMedia('m1');
+    await seedMedia('m2');
+    const fetchImpl = mockFetchByMediaId({ m2: { status: 400, body: NOT_FOUND_BODY } });
+
+    const r = await markDeletedMedia(db, metaClient(fetchImpl), 'acct', new Set(['m1']));
+    expect(r.deleted).toBe(1);
+
+    const rows = await db.select().from(schema.instagramMedia);
+    const byId = new Map(rows.map((m: { instagramMediaId: string }) => [m.instagramMediaId, m]));
+    expect(byId.get('m1').deletedAt).toBeNull();
+    expect(byId.get('m2').deletedAt).toBeTruthy();
+  });
+
+  it('does not mark media that still exists (merely absent from the first page)', async () => {
+    await seedMedia('m2');
+    const fetchImpl = mockFetchByMediaId({ m2: { status: 200, body: { id: 'm2' } } });
+
+    const r = await markDeletedMedia(db, metaClient(fetchImpl), 'acct', new Set());
+    expect(r.deleted).toBe(0);
+    const rows = await db.select().from(schema.instagramMedia);
+    expect(rows[0].deletedAt).toBeNull();
+  });
+
+  it('does not treat retryable failures (5xx / rate limit / network) as deletion evidence', async () => {
+    await seedMedia('m2');
+    const fetchImpl = mockFetchByMediaId({ m2: { status: 500, body: { error: { code: 1 } } } });
+
+    const r = await markDeletedMedia(db, metaClient(fetchImpl), 'acct', new Set());
+    expect(r.deleted).toBe(0);
+    const rows = await db.select().from(schema.instagramMedia);
+    expect(rows[0].deletedAt).toBeNull();
+  });
+
+  it('does not treat token failures as deletion evidence', async () => {
+    await seedMedia('m2');
+    const fetchImpl = mockFetchByMediaId({ m2: { status: 401, body: { error: { code: 190 } } } });
+
+    const r = await markDeletedMedia(db, metaClient(fetchImpl), 'acct', new Set());
+    expect(r.deleted).toBe(0);
+  });
+
+  it('skips media already marked deleted (no repeated verification calls)', async () => {
+    await seedMedia('m2');
+    await db
+      .update(schema.instagramMedia)
+      .set({ deletedAt: '2026-08-01T00:00:00Z' })
+      .where(eq(schema.instagramMedia.instagramMediaId, 'm2'));
+    const fetchImpl = mockFetchByMediaId({});
+
+    const r = await markDeletedMedia(db, metaClient(fetchImpl), 'acct', new Set());
+    expect(r.deleted).toBe(0);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('pauses the active automation bound to a deleted media', async () => {
+    await seedMedia('m2');
+    const [media] = await db.select().from(schema.instagramMedia);
+    await db.insert(schema.automations).values({
+      id: 'auto-1',
+      instagramMediaId: media.id,
+      name: 'A',
+      status: 'active',
+    });
+    const fetchImpl = mockFetchByMediaId({ m2: { status: 400, body: NOT_FOUND_BODY } });
+
+    await markDeletedMedia(db, metaClient(fetchImpl), 'acct', new Set());
+    const [auto] = await db.select().from(schema.automations);
+    expect(auto.status).toBe('paused');
   });
 });
 

@@ -1,0 +1,1 @@
+ALTER TABLE `instagram_media` ADD `deleted_at` text;

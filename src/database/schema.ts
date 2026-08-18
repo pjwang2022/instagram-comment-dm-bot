@@ -57,6 +57,8 @@ export const instagramMedia = sqliteTable(
     permalink: text('permalink'),
     publishedAt: text('published_at'),
     lastSyncedAt: text('last_synced_at'),
+    // 非 NULL＝IG 上已確認刪除（同步時逐篇向 Meta 查證後標記）；後台列表預設隱藏。
+    deletedAt: text('deleted_at'),
     createdAt: text('created_at').notNull().$defaultFn(nowIso),
     updatedAt: text('updated_at').notNull().$defaultFn(nowIso),
   },

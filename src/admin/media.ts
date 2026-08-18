@@ -1,5 +1,5 @@
 // 貼文列表 Admin API（spec.md 第 16.6 節）。唯讀 GET，需登入。
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppBindings } from '../app';
 import { createDb } from '../database/client';
@@ -34,10 +34,16 @@ export function createMediaRoutes() {
     const limit = Math.min(Number.parseInt(q.limit ?? '', 10) || DEFAULT_LIMIT, MAX_LIMIT);
     const page = Math.max(Number.parseInt(q.page ?? '', 10) || 1, 1);
 
+    // IG 上已刪除的貼文預設隱藏；?includeDeleted=1 可查回（發送紀錄仍保留）。
     const mediaRows = await db
       .select()
       .from(instagramMedia)
-      .where(q.mediaType ? eq(instagramMedia.mediaType, q.mediaType) : undefined)
+      .where(
+        and(
+          q.mediaType ? eq(instagramMedia.mediaType, q.mediaType) : undefined,
+          q.includeDeleted === '1' ? undefined : isNull(instagramMedia.deletedAt),
+        ),
+      )
       .orderBy(desc(instagramMedia.publishedAt))
       .limit(limit)
       .offset((page - 1) * limit);
