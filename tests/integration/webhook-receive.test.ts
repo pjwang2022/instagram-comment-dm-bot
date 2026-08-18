@@ -116,3 +116,71 @@ describe('POST /api/webhooks/meta/instagram', () => {
   });
 });
 
+
+function storyReplyBody(mid: string, storyId = 'story-1') {
+  return JSON.stringify({
+    object: 'instagram',
+    entry: [
+      {
+        id: 'acct-1',
+        time: 1700000000,
+        messaging: [
+          {
+            sender: { id: 'user-9' },
+            recipient: { id: 'acct-1' },
+            timestamp: 1700000001234,
+            message: { mid, text: '關鍵字', reply_to: { story: { id: storyId } } },
+          },
+        ],
+      },
+    ],
+  });
+}
+
+describe('POST /api/webhooks/meta/instagram — story replies', () => {
+  it('stores a story_reply event keyed by mid and enqueues with eventType', async () => {
+    const body = storyReplyBody('mid.abc');
+    const res = await post(body, await sign(body));
+    expect(res.status).toBe(200);
+    expect(enqueued).toHaveLength(1);
+    expect(enqueued[0]).toMatchObject({
+      instagramAccountId: 'acct-1',
+      instagramMediaId: 'story-1',
+      instagramCommentId: 'mid.abc',
+      eventType: 'story_reply',
+    });
+    const rows = await drizzle(sqlite, { schema }).select().from(webhookEvents);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].eventType).toBe('story_reply');
+    expect(rows[0].eventKey).toBe('mid.abc');
+  });
+
+  it('is idempotent on story redelivery (duplicate_count++, no re-enqueue)', async () => {
+    const body = storyReplyBody('mid.abc');
+    await post(body, await sign(body));
+    await post(body, await sign(body));
+    expect(enqueued).toHaveLength(1);
+    const rows = await drizzle(sqlite, { schema }).select().from(webhookEvents);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].duplicateCount).toBe(1);
+  });
+
+  it('ignores plain DMs (no reply_to.story): 200, nothing stored', async () => {
+    const body = JSON.stringify({
+      object: 'instagram',
+      entry: [
+        {
+          id: 'acct-1',
+          time: 1700000000,
+          messaging: [
+            { sender: { id: 'user-9' }, recipient: { id: 'acct-1' }, timestamp: 1, message: { mid: 'mid.x', text: '哈囉' } },
+          ],
+        },
+      ],
+    });
+    const res = await post(body, await sign(body));
+    expect(res.status).toBe(200);
+    expect(enqueued).toHaveLength(0);
+    expect(await drizzle(sqlite, { schema }).select().from(webhookEvents)).toHaveLength(0);
+  });
+});

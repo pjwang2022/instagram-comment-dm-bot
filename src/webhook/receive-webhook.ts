@@ -8,7 +8,7 @@ import { createDb } from '../database/client';
 import { webhookEvents } from '../database/schema';
 import { createLogger } from '../monitoring/logger';
 import { enqueueCommentEvent } from '../queue/producer';
-import { deriveEventKey, extractCommentEvents } from './event-parser';
+import { deriveEventKey, extractCommentEvents, extractStoryReplyEvents } from './event-parser';
 import { verifyWebhookSignature } from './signature';
 
 export async function handleWebhookReceive(
@@ -32,25 +32,52 @@ export async function handleWebhookReceive(
     return c.text('bad request', 400);
   }
 
-  const events = extractCommentEvents(payload);
-  const db = createDb(c.env.DB);
-
-  for (const ev of events) {
+  // 留言與限動回應統一成一份清單：eventKey 來源不同（留言＝欄位雜湊、限動＝mid 穩定 ID），
+  // 其餘冪等寫入與入列流程完全共用。
+  const commentEvents = extractCommentEvents(payload)
     // 缺 Comment ID／Media ID 的事件不處理（spec §8.3 排除條件之一）。
-    if (!ev.instagramCommentId || !ev.instagramMediaId) continue;
+    .filter((ev) => ev.instagramCommentId && ev.instagramMediaId);
+  const storyEvents = extractStoryReplyEvents(payload).filter((ev) => ev.messageId && ev.storyId);
 
-    const eventKey = await deriveEventKey({
+  const unified: Array<{
+    eventKey: string;
+    eventType: 'comments' | 'story_reply';
+    instagramAccountId: string;
+    instagramMediaId: string;
+    instagramCommentId: string;
+  }> = [];
+  for (const ev of commentEvents) {
+    unified.push({
+      eventKey: await deriveEventKey({
+        instagramAccountId: ev.instagramAccountId,
+        instagramMediaId: ev.instagramMediaId,
+        instagramCommentId: ev.instagramCommentId,
+        eventType: ev.eventType,
+        eventTimestamp: ev.eventTimestamp,
+      }),
+      eventType: 'comments',
       instagramAccountId: ev.instagramAccountId,
       instagramMediaId: ev.instagramMediaId,
       instagramCommentId: ev.instagramCommentId,
-      eventType: ev.eventType,
-      eventTimestamp: ev.eventTimestamp,
     });
+  }
+  for (const ev of storyEvents) {
+    unified.push({
+      // mid 是 Meta 的穩定訊息 ID，直接當事件鍵。
+      eventKey: await deriveEventKey({ stableEventId: ev.messageId }),
+      eventType: 'story_reply',
+      instagramAccountId: ev.instagramAccountId,
+      instagramMediaId: ev.storyId,
+      instagramCommentId: ev.messageId,
+    });
+  }
 
+  const db = createDb(c.env.DB);
+  for (const ev of unified) {
     const existing = await db
       .select()
       .from(webhookEvents)
-      .where(eq(webhookEvents.eventKey, eventKey))
+      .where(eq(webhookEvents.eventKey, ev.eventKey))
       .limit(1);
 
     if (existing.length > 0) {
@@ -68,7 +95,7 @@ export async function handleWebhookReceive(
     const id = crypto.randomUUID();
     await db.insert(webhookEvents).values({
       id,
-      eventKey,
+      eventKey: ev.eventKey,
       eventType: ev.eventType,
       instagramAccountId: ev.instagramAccountId,
       instagramMediaId: ev.instagramMediaId,
@@ -80,10 +107,11 @@ export async function handleWebhookReceive(
 
     await enqueueCommentEvent(c.env.COMMENT_QUEUE, {
       webhookEventId: id,
-      eventKey,
+      eventKey: ev.eventKey,
       instagramAccountId: ev.instagramAccountId,
       instagramMediaId: ev.instagramMediaId,
       instagramCommentId: ev.instagramCommentId,
+      eventType: ev.eventType,
     });
   }
 

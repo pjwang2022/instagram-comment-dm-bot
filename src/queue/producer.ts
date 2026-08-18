@@ -6,6 +6,9 @@ export interface CommentEventMessage {
   instagramAccountId: string;
   instagramMediaId: string;
   instagramCommentId: string;
+  // 'story_reply'＝限時動態回應（mid 存於 instagramCommentId、story id 存於 instagramMediaId）。
+  // 省略或 'comments'＝留言事件（向後相容既有佇列中的訊息）。
+  eventType?: 'comments' | 'story_reply';
 }
 
 export async function enqueueCommentEvent(
