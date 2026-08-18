@@ -1021,3 +1021,63 @@ body {
 .btn-outline:hover:not(:disabled) {
   background: var(--color-primary-soft);
 }
+
+/* ── 近 14 天成效趨勢圖 ── */
+.chart-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.chart-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.legend-dot.is-matched {
+  background: var(--primary-500);
+}
+.legend-dot.is-dm {
+  background: var(--success-fg);
+}
+.legend-dot.is-fail {
+  background: var(--danger-fg);
+  border-radius: var(--radius-full);
+}
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.bar-matched {
+  fill: var(--primary-500);
+}
+.bar-dm {
+  fill: var(--success-fg);
+}
+.bar-fail {
+  fill: var(--danger-fg);
+}
+.chart-tick {
+  font-size: 9px;
+  fill: var(--color-text-subtle);
+}

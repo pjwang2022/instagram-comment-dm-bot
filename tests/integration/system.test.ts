@@ -149,3 +149,25 @@ describe('status — today（台北時區）與 total 統計', () => {
     expect(status.today.publicReplySuccess).toBe(0);
   });
 });
+describe('status — daily 近 14 天逐日統計', () => {
+  it('returns 14 days with runs bucketed by Taipei date', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.automationRuns).values({
+      id: 'run-1',
+      automationId: 'auto',
+      instagramCommentId: 'c-1',
+      instagramMediaId: 'ig-media',
+      status: 'completed',
+      privateReplyStatus: 'success',
+    });
+    const status = await (await createApp().fetch(get('/status'), env)).json();
+    expect(status.daily).toHaveLength(14);
+    const last = status.daily[13];
+    expect(last.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(last.matched).toBe(1);
+    expect(last.dmSuccess).toBe(1);
+    expect(last.failures).toBe(0);
+    // 很久以前的 run 不會出現在近 14 天
+    expect(status.daily.slice(0, 13).every((d: { matched: number }) => d.matched === 0)).toBe(true);
+  });
+});

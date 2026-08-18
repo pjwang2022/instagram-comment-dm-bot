@@ -11,12 +11,19 @@ interface StatCounts {
   dmSuccess: number;
   failures: number;
 }
+interface DailyStat {
+  date: string;
+  matched: number;
+  dmSuccess: number;
+  failures: number;
+}
 interface Status {
   emergencyStop: boolean;
   circuitBreakerStatus: string;
   account: { username: string | null; profilePictureUrl: string | null } | null;
   today: StatCounts;
   total: StatCounts;
+  daily: DailyStat[];
 }
 interface Media {
   id: string;
@@ -85,6 +92,51 @@ function Thumb({ url, type }: { url: string | null; type: string }) {
           {typeLabel(type)}
         </span>
       )}
+    </div>
+  );
+}
+
+// 近 14 天成效趨勢：純 SVG 群組長條圖（符合＝主色、DM＝綠色、有失敗的日子在下方標紅點）。
+// 滑鼠懸停任一天可看該日數字（<title> 原生 tooltip）。
+function DailyChart({ daily }: { daily: DailyStat[] }) {
+  const H = 96;
+  const BW = 9;
+  const GROUP = BW * 2 + 2 + 10;
+  const W = daily.length * GROUP;
+  const max = Math.max(1, ...daily.map((d) => Math.max(d.matched, d.dmSuccess)));
+  const bar = (v: number) => Math.max(v > 0 ? 2 : 1, Math.round((v / max) * H));
+  return (
+    <div className="chart-card">
+      <div className="chart-head">
+        <span className="chart-title">近 14 天成效</span>
+        <span className="chart-legend">
+          <i className="legend-dot is-matched" />符合
+          <i className="legend-dot is-dm" />DM 成功
+          <i className="legend-dot is-fail" />有失敗
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H + 22}`} className="chart-svg" role="img" aria-label="近 14 天成效趨勢圖">
+        {daily.map((d, i) => {
+          const x = i * GROUP;
+          const mh = bar(d.matched);
+          const dh = bar(d.dmSuccess);
+          return (
+            <g key={d.date}>
+              <title>{`${d.date}｜符合 ${d.matched}・DM ${d.dmSuccess}${d.failures > 0 ? `・失敗 ${d.failures}` : ''}`}</title>
+              {/* 懸停熱區 */}
+              <rect x={x - 2} y={0} width={GROUP - 4} height={H + 22} fill="transparent" />
+              <rect x={x} y={H - mh} width={BW} height={mh} rx={2} className="bar-matched" />
+              <rect x={x + BW + 2} y={H - dh} width={BW} height={dh} rx={2} className="bar-dm" />
+              {d.failures > 0 ? <circle cx={x + BW} cy={H + 8} r={3} className="bar-fail" /> : null}
+              {i % 2 === 1 ? (
+                <text x={x + BW} y={H + 19} textAnchor="middle" className="chart-tick">
+                  {d.date.slice(5).replace('-', '/')}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -298,6 +350,8 @@ export function HomePage() {
             </div>
           </div>
         ) : null}
+
+        {status && status.daily?.some((d) => d.matched > 0) ? <DailyChart daily={status.daily} /> : null}
 
         {status && status.circuitBreakerStatus === 'open' ? (
           <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>

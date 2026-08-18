@@ -62,6 +62,30 @@ export function createSystemRoutes() {
 
     const runs = await db.select().from(automationRuns);
     const todayRuns = runs.filter((r: { createdAt: string }) => r.createdAt >= dayStartUtc);
+
+    // 近 14 天逐日統計（台北時區），供首頁趨勢圖。以 run 的 created_at 換算台北日期分桶。
+    const toTaipeiDate = (iso: string) =>
+      new Date(Date.parse(iso) + TAIPEI_OFFSET_MS).toISOString().slice(0, 10);
+    const byDate = new Map<string, Array<(typeof runs)[number]>>();
+    for (const r of runs) {
+      const d = toTaipeiDate(r.createdAt);
+      const bucket = byDate.get(d);
+      if (bucket) bucket.push(r);
+      else byDate.set(d, [r]);
+    }
+    const daily: Array<{ date: string; matched: number; dmSuccess: number; failures: number }> = [];
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(Date.parse(`${taipeiDay}T00:00:00Z`) - i * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      const bucket = byDate.get(date) ?? [];
+      daily.push({
+        date,
+        matched: bucket.length,
+        dmSuccess: bucket.filter((r) => r.privateReplyStatus === 'success').length,
+        failures: bucket.filter((r) => r.status === 'completed_with_errors').length,
+      });
+    }
     const countStats = (rows: Array<{ publicReplyStatus: string | null; privateReplyStatus: string | null; status: string }>) => ({
       matched: rows.length,
       publicReplySuccess: rows.filter((r) => r.publicReplyStatus === 'success').length,
@@ -80,6 +104,7 @@ export function createSystemRoutes() {
       lastWebhookReceivedAt: accounts[0]?.lastWebhookReceivedAt ?? null,
       today: countStats(todayRuns),
       total: countStats(runs),
+      daily,
     });
   });
 
