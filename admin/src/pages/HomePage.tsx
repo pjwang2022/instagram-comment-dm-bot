@@ -427,16 +427,28 @@ export function HomePage() {
   return (
     <>
       <AppHeader />
-      <div className="container">
-        {error ? <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div> : null}
-        {syncNotice ? (
-          <div className="alert alert-success" style={{ marginBottom: 'var(--space-2)' }}>{syncNotice}</div>
-        ) : null}
-        {syncErrors.map((e, i) => (
-          <div key={i} className="alert alert-danger" style={{ marginBottom: 'var(--space-2)' }}>
-            {e}
+      <div className="container page-stack">
+        {error || syncNotice || syncErrors.length > 0 ? (
+          <div className="stack-sm">
+            {error ? <div className="alert alert-danger">{error}</div> : null}
+            {syncNotice ? <div className="alert alert-success">{syncNotice}</div> : null}
+            {syncErrors.map((e, i) => (
+              <div key={i} className="alert alert-danger">
+                {e}
+              </div>
+            ))}
           </div>
-        ))}
+        ) : null}
+
+        {status && status.circuitBreakerStatus === 'open' ? (
+          <div className="alert alert-danger">
+            熔斷器已「自動」開啟：系統偵測到連續 Meta API 失敗，暫停所有發送以保護你的帳號（不是你操作的）。
+            確認 Instagram 沒有異常後，按「熔斷復歸」恢復發送。
+            <button className="btn btn-sm btn-primary alert-cta" onClick={resetCircuitBreaker}>
+              熔斷復歸
+            </button>
+          </div>
+        ) : null}
 
         {/* IG 個人頁式頁首 */}
         {status ? (
@@ -492,63 +504,70 @@ export function HomePage() {
 
         {status?.series ? <DmTrendChart series={status.series} /> : null}
 
-        {status && status.circuitBreakerStatus === 'open' ? (
-          <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>
-            熔斷器已「自動」開啟：系統偵測到連續 Meta API 失敗，暫停所有發送以保護你的帳號（不是你操作的）。
-            確認 Instagram 沒有異常後，按「熔斷復歸」恢復發送。
-            <button className="btn btn-sm btn-primary" style={{ marginLeft: 'var(--space-3)' }} onClick={resetCircuitBreaker}>
-              熔斷復歸
-            </button>
-          </div>
-        ) : null}
-
         {/* 既有的待命／全帳號預設（新增入口在頁首導覽的「＋ 新增自動化」） */}
         {pendingAutomations.length > 0 ? (
-          <div className="pending-row">
-            {pendingAutomations.map((a) => (
-              <button
-                key={a.automationId}
-                type="button"
-                className="chip chip-clickable"
-                onClick={() => navigate(`/automations/new?scope=${a.applyScope}&automationId=${a.automationId}`)}
-              >
-                {a.applyScope === 'next_post' ? '待綁定' : '全帳號'}｜{a.name}
-                {a.status === 'active' ? '（啟用中）' : a.status === 'paused' ? '（暫停）' : '（草稿）'}
-              </button>
-            ))}
+          <div className="card">
+            <div className="section-head">
+              <span className="section-heading">未綁定的自動化</span>
+              <span className="count">{pendingAutomations.length}</span>
+            </div>
+            <div className="pending-row">
+              {pendingAutomations.map((a) => (
+                <button
+                  key={a.automationId}
+                  type="button"
+                  className="chip chip-clickable"
+                  onClick={() => navigate(`/automations/new?scope=${a.applyScope}&automationId=${a.automationId}`)}
+                >
+                  {a.applyScope === 'next_post' ? '待綁定' : '全帳號'}｜{a.name}
+                  {a.status === 'active' ? '（啟用中）' : a.status === 'paused' ? '（暫停）' : '（草稿）'}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
 
-        {/* 限動圓圈列 */}
-        <div className="story-row">
-          {stories.length === 0 ? (
-            <span className="state-note">目前沒有進行中的限時動態（按「↻ 同步」抓取）。</span>
-          ) : (
-            stories.map((s) => (
-              <StoryCircle
-                key={s.id}
-                story={s}
-                active={s.automationStatus === 'active'}
-                onClick={() => openEditor(s)}
-              />
-            ))
-          )}
+        {/* 限動 */}
+        <div className="card">
+          <div className="section-head">
+            <span className="section-heading">限時動態</span>
+            <span className="count">{stories.length}</span>
+          </div>
+          <div className="story-row">
+            {stories.length === 0 ? (
+              <span className="state-note">目前沒有進行中的限時動態（按「↻ 同步」抓取）。</span>
+            ) : (
+              stories.map((s) => (
+                <StoryCircle
+                  key={s.id}
+                  story={s}
+                  active={s.automationStatus === 'active'}
+                  onClick={() => openEditor(s)}
+                />
+              ))
+            )}
+          </div>
         </div>
 
         {/* 貼文九宮格 */}
-        {loading ? (
-          <div className="state-note">載入中…</div>
-        ) : posts.length === 0 ? (
-          <div className="card" style={{ marginTop: 'var(--space-4)' }}>
-            <div className="state-note">尚無貼文。按上方「↻ 同步」從 Instagram 抓取。</div>
+        <section>
+          <div className="section-head">
+            <span className="section-heading">貼文</span>
+            <span className="count">{posts.length}</span>
           </div>
-        ) : (
-          <div className="media-grid" style={{ marginTop: 'var(--space-4)' }}>
+          {loading ? (
+            <div className="state-note">載入中…</div>
+          ) : posts.length === 0 ? (
+            <div className="card">
+              <div className="state-note">尚無貼文。按上方「↻ 同步」從 Instagram 抓取。</div>
+            </div>
+          ) : (
+          <div className="media-grid">
             {posts.map((m) => {
               const stats = statsByMediaId.get(m.id);
               return (
                 <div className="media-card" key={m.id}>
-                  <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => openEditor(m)}>
+                  <div className="media-thumb-wrap" onClick={() => openEditor(m)}>
                     <Thumb url={m.thumbnailUrl} type={m.mediaType} />
                     {m.automationId ? (
                       <button
@@ -597,7 +616,8 @@ export function HomePage() {
               );
             })}
           </div>
-        )}
+          )}
+        </section>
       </div>
     </>
   );

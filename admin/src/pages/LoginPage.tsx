@@ -62,7 +62,7 @@ export function LoginPage() {
     <div className="login-viewport">
       <div className="login-card">
         <div className="login-brand">
-          <span className="dot" style={{ width: 10, height: 10 }} />
+          <span className="dot dot-lg" />
           Instagram Comment DM Bot
         </div>
         <h1 className="login-title">{isSetup ? '建立管理者帳號' : '登入管理後台'}</h1>
@@ -122,7 +122,7 @@ export function LoginPage() {
           ) : null}
 
           {error ? (
-            <div className="alert alert-danger" role="alert" style={{ marginBottom: 'var(--space-4)' }}>
+            <div className="alert alert-danger alerts-block" role="alert">
               {error}
             </div>
           ) : null}

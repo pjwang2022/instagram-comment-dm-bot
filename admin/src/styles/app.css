@@ -21,7 +21,7 @@ body {
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-header);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -151,7 +151,7 @@ body {
 }
 .btn-primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-white);
   box-shadow: var(--shadow-sm);
 }
 .btn-primary:hover:not(:disabled) {
@@ -169,7 +169,7 @@ body {
   color: var(--danger-fg);
 }
 .btn-danger:hover:not(:disabled) {
-  background: #fecaca;
+  background: var(--danger-100);
 }
 .btn-sm {
   height: 30px;
@@ -588,8 +588,8 @@ body {
   padding: 3px 8px;
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  color: #fff;
-  background: rgb(15 23 42 / 0.62);
+  color: var(--color-white);
+  background: var(--overlay-strong);
   backdrop-filter: blur(2px);
   border-radius: var(--radius-full);
 }
@@ -742,7 +742,6 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-5) var(--space-6);
-  margin-bottom: var(--space-4);
 }
 .profile-avatar {
   width: 64px;
@@ -800,13 +799,12 @@ body {
   flex-shrink: 0;
 }
 
-/* ── 待命／全帳號預設列 ── */
+/* ── 待命／全帳號預設 chips 列（在卡片內，不自帶外距） ── */
 .pending-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
-  margin-bottom: var(--space-4);
 }
 .chip-clickable {
   cursor: pointer;
@@ -817,14 +815,17 @@ body {
   background: var(--primary-100);
 }
 
-/* ── 限動圓圈列 ── */
+/* ── 限動圓圈列（在卡片內） ── */
 .story-row {
   display: flex;
   gap: var(--space-4);
   align-items: center;
   overflow-x: auto;
-  padding: var(--space-2) 0 var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-1) 0;
+}
+.story-row .state-note {
+  padding: var(--space-2) 0;
+  text-align: left;
 }
 .story-circle {
   display: flex;
@@ -846,7 +847,7 @@ body {
 }
 /* IG 式漸層外框＝自動化啟用中 */
 .story-circle.is-active .story-ring {
-  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  background: var(--gradient-ig);
 }
 .story-ring img,
 .story-fallback {
@@ -901,7 +902,7 @@ body {
   padding: 2px;
   border: none;
   border-radius: var(--radius-full);
-  background: rgb(15 23 42 / 0.4);
+  background: var(--overlay-soft);
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: background 0.15s ease;
@@ -912,7 +913,7 @@ body {
   width: 18px;
   height: 18px;
   border-radius: var(--radius-full);
-  background: #fff;
+  background: var(--color-white);
   transform: translateX(0);
   transition: transform 0.15s ease;
 }
@@ -934,13 +935,13 @@ body {
 .nav-menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 19;
+  z-index: var(--z-overlay);
 }
 .nav-dropdown {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 20;
+  z-index: var(--z-dropdown);
   min-width: 260px;
   padding: var(--space-1);
   background: var(--color-surface);
@@ -1028,7 +1029,6 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-5) var(--space-6);
-  margin-bottom: var(--space-4);
 }
 .chart-head {
   display: flex;
@@ -1101,7 +1101,7 @@ body {
   stroke-width: 1;
 }
 .chart-tick {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   fill: var(--color-text-subtle);
   font-variant-numeric: tabular-nums;
 }
@@ -1133,7 +1133,7 @@ body {
   padding: var(--space-2) var(--space-3);
   pointer-events: none;
   white-space: nowrap;
-  z-index: 5;
+  z-index: var(--z-tooltip);
 }
 .chart-tooltip-title {
   font-size: var(--text-xs);
@@ -1168,4 +1168,85 @@ body {
   justify-content: center;
   font-size: var(--text-sm);
   color: var(--color-text-subtle);
+}
+
+/* ── 版面節奏（間距單一來源，元件不自帶外距） ── */
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+}
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+/* 非 page-stack 頁面的警示群組（自帶下方間距） */
+.alerts-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+/* ── 區塊標題（頁面區塊與卡片內共用） ── */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+.section-heading {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+.section-head .count {
+  font-size: var(--text-sm);
+  color: var(--color-text-subtle);
+}
+.card > .section-head {
+  margin-bottom: var(--space-3);
+}
+
+/* ── 容器寬度變體 ── */
+.container-narrow {
+  max-width: 720px;
+}
+.container-tight {
+  max-width: 480px;
+}
+
+/* ── 取代 inline style 的定位/間距類 ── */
+.media-thumb-wrap {
+  position: relative;
+  cursor: pointer;
+}
+.alert-cta {
+  margin-left: var(--space-3);
+}
+.alert-list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+.status-line .page-title {
+  margin: 0;
+}
+.field-help.is-tight {
+  margin-top: 0;
+  margin-bottom: var(--space-3);
+}
+.field-help.is-inline {
+  margin: 0;
+}
+.card-title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+.page-subtitle.is-footnote {
+  margin: var(--space-4) 0 0;
+}
+.dot.dot-lg {
+  width: 10px;
+  height: 10px;
 }

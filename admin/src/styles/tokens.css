@@ -86,4 +86,25 @@
   --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
   --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
   --shadow-lg: 0 10px 20px -5px rgb(15 23 42 / 0.12), 0 4px 8px -4px rgb(15 23 42 / 0.08);
+
+  /* ── 基底色與疊加層（縮圖上的標籤/開關用；不得另寫 rgba）── */
+  --color-white: #ffffff;
+  --danger-100: #fecaca;
+  --overlay-strong: rgb(15 23 42 / 0.62);
+  --overlay-soft: rgb(15 23 42 / 0.4);
+
+  /* ── 品牌漸層（IG 限動外框，僅此一處使用漸層）── */
+  --gradient-ig: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+
+  /* ── 極小字級（圖表刻度等 SVG 內文字專用）── */
+  --text-2xs: 11px;
+
+  /* ── z-index 尺度（sticky 頁首 < 遮罩 < 下拉 < tooltip）── */
+  --z-header: 10;
+  --z-overlay: 19;
+  --z-dropdown: 20;
+  --z-tooltip: 30;
+
+  /* ── 版面節奏：頁面區塊間距單一來源 ── */
+  --section-gap: var(--space-6);
 }

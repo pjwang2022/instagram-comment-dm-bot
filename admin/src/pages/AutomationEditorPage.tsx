@@ -214,13 +214,13 @@ export function AutomationEditorPage() {
   return (
     <>
       <AppHeader />
-      <div className="container" style={{ maxWidth: 720 }}>
+      <div className="container container-narrow">
         <Link to="/" className="back-link">
           ← 返回首頁
         </Link>
 
         <div className="status-line">
-          <h1 className="page-title" style={{ margin: 0 }}>
+          <h1 className="page-title">
             {storyMode
               ? savedId
                 ? '編輯限動自動化'
@@ -259,20 +259,20 @@ export function AutomationEditorPage() {
           </p>
         ) : null}
 
-        {error ? <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div> : null}
-        {activationErrors.length ? (
-          <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>
-            無法啟用：
-            <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-              {activationErrors.map((r) => (
-                <li key={r}>{ACTIVATION_REASON_TEXT[r] ?? r}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {notice ? (
-          <div className="alert" style={{ marginBottom: 'var(--space-4)', color: 'var(--success-fg)', background: 'var(--success-bg)' }}>
-            {notice}
+        {error || activationErrors.length || notice ? (
+          <div className="alerts-block">
+            {error ? <div className="alert alert-danger">{error}</div> : null}
+            {activationErrors.length ? (
+              <div className="alert alert-danger">
+                無法啟用：
+                <ul className="alert-list">
+                  {activationErrors.map((r) => (
+                    <li key={r}>{ACTIVATION_REASON_TEXT[r] ?? r}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {notice ? <div className="alert alert-success">{notice}</div> : null}
           </div>
         ) : null}
 
@@ -377,7 +377,7 @@ export function AutomationEditorPage() {
                 </div>
                 {buttonEnabled ? (
                   <>
-                    <p className="field-help" style={{ marginTop: 0, marginBottom: 'var(--space-3)' }}>
+                    <p className="field-help is-tight">
                       IG 私訊裡純文字的連結不一定可點；加按鈕能保證有一個可點擊的連結。
                     </p>
                     <div className="form-field">
@@ -403,7 +403,7 @@ export function AutomationEditorPage() {
           </div>
 
           <div className="btn-row">
-            {!savedId ? <span className="field-help" style={{ margin: 0 }}>先儲存才能啟用</span> : null}
+            {!savedId ? <span className="field-help is-inline">先儲存才能啟用</span> : null}
             <button className="btn btn-outline" onClick={handleSave} disabled={busy}>
               {busy ? '處理中…' : '儲存'}
             </button>

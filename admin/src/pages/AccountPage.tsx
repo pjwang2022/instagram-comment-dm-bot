@@ -48,10 +48,10 @@ export function AccountPage() {
   return (
     <>
       <AppHeader />
-      <div className="container" style={{ maxWidth: 480 }}>
+      <div className="container container-tight">
         <h1 className="page-title">帳號設定</h1>
         <div className="card">
-          <h2 style={{ fontSize: 16, marginTop: 0 }}>變更密碼</h2>
+          <h2 className="card-title">變更密碼</h2>
           <form onSubmit={handleSubmit}>
             <div className="form-field">
               <label className="label" htmlFor="current-password">
@@ -98,12 +98,12 @@ export function AccountPage() {
             </div>
 
             {error ? (
-              <div className="alert alert-danger" role="alert" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="alert alert-danger alerts-block" role="alert">
                 {error}
               </div>
             ) : null}
             {notice ? (
-              <div className="alert alert-success" role="status" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="alert alert-success alerts-block" role="status">
                 {notice}
               </div>
             ) : null}
@@ -113,7 +113,7 @@ export function AccountPage() {
             </button>
           </form>
         </div>
-        <p className="page-subtitle" style={{ marginTop: 'var(--space-4)' }}>
+        <p className="page-subtitle is-footnote">
           本系統不提供忘記密碼重設，請妥善保管新密碼。
         </p>
       </div>
