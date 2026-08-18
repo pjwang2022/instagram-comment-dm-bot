@@ -503,6 +503,8 @@ body {
   display: flex;
   gap: var(--space-3);
   align-items: center;
+  /* 動作列靠右，主要動作（啟用）在最右。 */
+  justify-content: flex-end;
   padding-top: var(--space-4);
   margin-top: var(--space-2);
   border-top: 1px solid var(--color-border);
@@ -881,4 +883,14 @@ body {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   margin-top: var(--space-1);
+}
+
+/* ── 次要動作（儲存）：外框樣式，把視覺重量讓給「啟用」 ── */
+.btn-outline {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-primary-soft);
 }

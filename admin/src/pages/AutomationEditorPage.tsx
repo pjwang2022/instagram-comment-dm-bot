@@ -20,14 +20,23 @@ interface AutomationDetail {
     buttonUrl: string | null;
     dailyLimit: number | null;
   };
+  media: { id: string; mediaType: string } | null;
   keywords: string[];
   publicReplyVariants: string[];
 }
+
+// 新建自動化時預填的公開回覆範本（可改可刪）。
+const DEFAULT_PUBLIC_REPLIES = [
+  '已經私訊你囉，記得去小盒子看看 📩',
+  '連結傳到你的 DM 了，去收信吧！',
+  '私訊已發送給你 🙌 沒收到的話檢查一下訊息邀請',
+];
 
 const ACTIVATION_REASON_TEXT: Record<string, string> = {
   keywords_required: '至少需要一個關鍵字（除非比對模式為「所有留言」）',
   at_least_one_reply_required: '至少要啟用「公開回覆」或「Private Reply」其中一項',
   opening_dm_required: 'Private Reply 啟用時，Opening DM 不能為空',
+  private_reply_required_for_story: '限動自動化必須啟用 Private Reply（私訊是唯一動作）',
   button_url_invalid: '按鈕網址必須是有效的 HTTPS 網址',
   token_unhealthy: 'Instagram Token 狀態異常',
   emergency_stop_active: '目前系統處於緊急停止狀態',
@@ -44,13 +53,18 @@ export function AutomationEditorPage() {
   const [applyScope, setApplyScope] = useState<string>(
     mediaId ? 'media' : (scopeParam ?? 'next_post'),
   );
+  // 限動模式：新建時由首頁帶 ?story=1，編輯既有時由 API 的 media.mediaType 判斷。
+  const [storyMode, setStoryMode] = useState(searchParams.get('story') === '1');
 
   const [name, setName] = useState('');
   const [matchType, setMatchType] = useState<MatchType>('contains_any');
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordDraft, setKeywordDraft] = useState('');
-  const [publicReplyEnabled, setPublicReplyEnabled] = useState(true);
-  const [variants, setVariants] = useState<string[]>(['']);
+  const [publicReplyEnabled, setPublicReplyEnabled] = useState(searchParams.get('story') !== '1');
+  // 新建（非限動）預填三則繁中範本；編輯既有以伺服器資料為準。
+  const [variants, setVariants] = useState<string[]>(
+    automationId || searchParams.get('story') === '1' ? [''] : [...DEFAULT_PUBLIC_REPLIES],
+  );
   const [privateReplyEnabled, setPrivateReplyEnabled] = useState(true);
   const [openingDm, setOpeningDm] = useState('');
   const [buttonEnabled, setButtonEnabled] = useState(false);
@@ -83,6 +97,10 @@ export function AutomationEditorPage() {
       setDailyLimit(d.automation.dailyLimit != null ? String(d.automation.dailyLimit) : '');
       setStatus(d.automation.status);
       setApplyScope(d.automation.applyScope ?? 'media');
+      if (d.media?.mediaType === 'STORY') {
+        setStoryMode(true);
+        setPublicReplyEnabled(false);
+      }
     } catch (e) {
       if ((e as ApiError).status === 401) navigate('/login');
       else setError((e as ApiError).message);
@@ -108,8 +126,9 @@ export function AutomationEditorPage() {
       name: name.trim(),
       matchType,
       keywords: matchType === 'all_comments' ? [] : keywords,
-      publicReplyEnabled,
-      publicReplyVariants: variants.map((v) => v.trim()).filter(Boolean),
+      // 限動沒有留言串，公開回覆一律關閉。
+      publicReplyEnabled: storyMode ? false : publicReplyEnabled,
+      publicReplyVariants: storyMode ? [] : variants.map((v) => v.trim()).filter(Boolean),
       privateReplyEnabled,
       openingDm: openingDm.trim(),
       // 沒勾「加上連結按鈕」就送空字串 → 後端發純文字 DM。
@@ -196,19 +215,23 @@ export function AutomationEditorPage() {
     <>
       <AppHeader />
       <div className="container" style={{ maxWidth: 720 }}>
-        <Link to="/media" className="back-link">
-          ← 返回貼文列表
+        <Link to="/" className="back-link">
+          ← 返回首頁
         </Link>
 
         <div className="status-line">
           <h1 className="page-title" style={{ margin: 0 }}>
-            {applyScope === 'next_post'
-              ? '待命自動化：下一篇新貼文'
-              : applyScope === 'account_default'
-                ? '全帳號預設自動化'
-                : savedId
-                  ? '編輯自動化'
-                  : '設定自動化'}
+            {storyMode
+              ? savedId
+                ? '編輯限動自動化'
+                : '設定限動自動化'
+              : applyScope === 'next_post'
+                ? '待命自動化：下一篇新貼文'
+                : applyScope === 'account_default'
+                  ? '全帳號預設自動化'
+                  : savedId
+                    ? '編輯自動化'
+                    : '設定自動化'}
           </h1>
           {applyScope === 'next_post' ? (
             <span className="badge badge-neutral">待綁定</span>
@@ -222,7 +245,11 @@ export function AutomationEditorPage() {
           )}
         </div>
 
-        {applyScope === 'next_post' ? (
+        {storyMode ? (
+          <p className="page-subtitle">
+            有人回應這則限時動態、且訊息含關鍵字時，自動私訊指定內容。限動 24 小時後過期，自動化會自動暫停。
+          </p>
+        ) : applyScope === 'next_post' ? (
           <p className="page-subtitle">
             先把關鍵字與回覆設定好並啟用；下一篇發布的新貼文（含排程貼文上線）會自動接上這組自動化，連第一則留言都不會漏。
           </p>
@@ -291,12 +318,17 @@ export function AutomationEditorPage() {
                   onBlur={addKeyword}
                   placeholder="輸入關鍵字後按 Enter"
                 />
-                <p className="field-help">留言（正規化後）符合任一關鍵字即觸發。大小寫、全形半形會自動處理。</p>
+                <p className="field-help">
+                  {storyMode
+                    ? '限動回應（正規化後）符合任一關鍵字即觸發私訊。大小寫、全形半形會自動處理。'
+                    : '留言（正規化後）符合任一關鍵字即觸發。大小寫、全形半形會自動處理。'}
+                </p>
               </div>
             ) : null}
           </div>
 
-          {/* 公開回覆 */}
+          {/* 公開回覆（限動沒有留言串，整區隱藏） */}
+          {storyMode ? null : (
           <div className="form-section">
             <div className="toggle-row">
               <input id="pub" type="checkbox" checked={publicReplyEnabled} onChange={(e) => setPublicReplyEnabled(e.target.checked)} />
@@ -323,6 +355,7 @@ export function AutomationEditorPage() {
               </>
             ) : null}
           </div>
+          )}
 
           {/* Private Reply */}
           <div className="form-section">
@@ -370,11 +403,12 @@ export function AutomationEditorPage() {
           </div>
 
           <div className="btn-row">
-            <button className="btn btn-primary" onClick={handleSave} disabled={busy}>
+            {!savedId ? <span className="field-help" style={{ margin: 0 }}>先儲存才能啟用</span> : null}
+            <button className="btn btn-outline" onClick={handleSave} disabled={busy}>
               {busy ? '處理中…' : '儲存'}
             </button>
             {status !== 'active' ? (
-              <button className="btn btn-ghost" onClick={handleActivate} disabled={busy || !savedId}>
+              <button className="btn btn-primary" onClick={handleActivate} disabled={busy || !savedId}>
                 啟用
               </button>
             ) : (
@@ -382,7 +416,6 @@ export function AutomationEditorPage() {
                 暫停
               </button>
             )}
-            {!savedId ? <span className="field-help" style={{ margin: 0 }}>先儲存才能啟用</span> : null}
           </div>
         </div>
       </div>
