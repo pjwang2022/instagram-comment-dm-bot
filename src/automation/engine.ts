@@ -3,7 +3,7 @@
 //
 // 冪等關鍵：同一 (automation, comment) 只有一個 run；queue 重試時只重試「尚未成功」的動作
 // （靠 run 上的 public_reply_status / private_reply_status），確保每個 Comment ID 最多各發一次。
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '../database/schema';
 import {
@@ -28,7 +28,7 @@ import { normalizeCommentText } from './normalizer';
 import { ensureAutomationRun } from './idempotency';
 import { selectPublicReply } from './public-reply';
 import { acquireSendPermission } from './send-gate';
-import { findCommentEvent } from '../webhook/event-parser';
+import { findCommentEvent, findStoryReplyEvent } from '../webhook/event-parser';
 
 type SchemaDb = BaseSQLiteDatabase<'sync' | 'async', unknown, typeof schema>;
 
@@ -70,6 +70,41 @@ async function discoverMedia(
       caption: res.data.caption ?? null,
       thumbnailUrl: res.data.thumbnail_url ?? res.data.media_url ?? null,
       permalink: res.data.permalink ?? null,
+      publishedAt: res.data.timestamp ?? null,
+      lastSyncedAt: new Date().toISOString(),
+    })
+    .onConflictDoNothing();
+  const rows = await db
+    .select()
+    .from(instagramMedia)
+    .where(eq(instagramMedia.instagramMediaId, res.data.id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+// 向 Meta 補抓單則限動並寫入 instagram_media（media_type 強制 STORY，理由見 meta/media.ts）。
+async function discoverStory(
+  db: SchemaDb,
+  metaClient: MetaClient,
+  storyId: string,
+): Promise<typeof instagramMedia.$inferSelect | null> {
+  const account = (await db.select().from(instagramAccounts).limit(1))[0];
+  if (!account) return null;
+  const res = await metaClient.get<{
+    id?: string;
+    media_url?: string;
+    thumbnail_url?: string;
+    timestamp?: string;
+  }>(storyId, { fields: 'id,media_type,media_url,thumbnail_url,timestamp' });
+  if (!res.ok || !res.data?.id) return null;
+  await db
+    .insert(instagramMedia)
+    .values({
+      id: crypto.randomUUID(),
+      instagramAccountId: account.id,
+      instagramMediaId: res.data.id,
+      mediaType: 'STORY',
+      thumbnailUrl: res.data.thumbnail_url ?? res.data.media_url ?? null,
       publishedAt: res.data.timestamp ?? null,
       lastSyncedAt: new Date().toISOString(),
     })
@@ -390,4 +425,181 @@ export async function processCommentEvent(
     publicReplyStatus: finalPublic,
     privateReplyStatus: finalPrivate,
   };
+}
+
+// 限時動態回應處理鏈：與留言路徑共用冪等 run／send-gate／attempt 紀錄，差異在：
+// - 只套用綁定該限動的專屬自動化（不走 next_post / account_default——那是留言語意）。
+// - 沒有公開回覆（限動無留言串），public_reply_status 一律 skipped。
+// - DM 的 recipient 用回應者 IGSID（回應已開啟 24 小時訊息窗）。
+export async function processStoryReplyEvent(
+  deps: EngineDeps,
+  message: CommentEventMessage,
+): Promise<EngineOutcome> {
+  const { db, metaClient } = deps;
+
+  // 1. Webhook event + 回應內容
+  const eventRows = await db
+    .select()
+    .from(webhookEvents)
+    .where(eq(webhookEvents.id, message.webhookEventId))
+    .limit(1);
+  if (eventRows.length === 0) return { kind: 'skipped', reason: 'webhook_event_not_found' };
+  let payload: unknown;
+  try {
+    payload = JSON.parse(eventRows[0].rawPayload);
+  } catch {
+    return { kind: 'skipped', reason: 'payload_parse_error' };
+  }
+  const reply = findStoryReplyEvent(payload, message.instagramCommentId);
+  if (!reply || !reply.messageId || !reply.storyId) {
+    return { kind: 'skipped', reason: 'story_reply_not_in_payload' };
+  }
+
+  // 2. 緊急停止
+  const settings = await db.select().from(systemSettings).limit(1);
+  if (settings.length > 0 && settings[0].emergencyStop === 1) {
+    return { kind: 'skipped', reason: 'emergency_stop' };
+  }
+
+  // 3. Story media——本地沒有時向 Meta 補抓（回應可能早於同步）。已過期不處理。
+  let mediaRows = await db
+    .select()
+    .from(instagramMedia)
+    .where(eq(instagramMedia.instagramMediaId, reply.storyId))
+    .limit(1);
+  if (mediaRows.length === 0) {
+    const discovered = await discoverStory(db, metaClient, reply.storyId);
+    if (!discovered) return { kind: 'skipped', reason: 'story_not_found' };
+    mediaRows = [discovered];
+  }
+  const media = mediaRows[0];
+  if (media.deletedAt) return { kind: 'skipped', reason: 'story_expired' };
+
+  // 4. 帳號（停用 / 熔斷）
+  const accountRows = await db
+    .select()
+    .from(instagramAccounts)
+    .where(eq(instagramAccounts.id, media.instagramAccountId))
+    .limit(1);
+  if (accountRows.length === 0) return { kind: 'skipped', reason: 'account_not_found' };
+  const account = accountRows[0];
+  if (account.automationEnabled === 0) return { kind: 'skipped', reason: 'account_disabled' };
+  if (account.circuitBreakerStatus !== 'closed') return { kind: 'skipped', reason: 'circuit_open' };
+
+  // 5. 專屬 active 自動化（限動不 fallback）
+  const autoRows = await db
+    .select()
+    .from(schema.automations)
+    .where(
+      and(eq(schema.automations.instagramMediaId, media.id), eq(schema.automations.status, 'active')),
+    )
+    .limit(1);
+  const automation = autoRows[0];
+  if (!automation) return { kind: 'skipped', reason: 'no_active_automation' };
+
+  // 6. 排除：自己（帳號本人）發出的回應
+  if (reply.senderId && reply.senderId === account.instagramAccountId) {
+    return { kind: 'skipped', reason: 'own_message' };
+  }
+
+  // 7. 正規化 + 比對
+  const normalized = normalizeCommentText(reply.text);
+  const kwRows = await db
+    .select()
+    .from(automationKeywords)
+    .where(eq(automationKeywords.automationId, automation.id));
+  const match = matchKeywords(
+    normalized,
+    kwRows.map((k) => k.normalizedKeyword),
+    automation.matchType as MatchType,
+  );
+  if (!match.matched) return { kind: 'no_match' };
+
+  // 8. 冪等 run（mid 存在 instagram_comment_id 欄，unique (automation, mid) 保證各發一次）
+  const { run } = await ensureAutomationRun(db, {
+    automationId: automation.id,
+    webhookEventId: message.webhookEventId,
+    instagramCommentId: reply.messageId,
+    instagramMediaId: media.instagramMediaId,
+    commenterId: reply.senderId || null,
+    commenterUsername: null,
+    originalCommentText: reply.text,
+    normalizedCommentText: normalized,
+    matchedKeyword: match.matchedKeyword,
+    status: 'matched',
+  });
+
+  let privateStatus = run.privateReplyStatus ?? 'pending';
+  let retryable = false;
+  const attemptNumber = run.retryCount + 1;
+
+  // 9. DM（限動唯一的動作）
+  if (privateStatus === 'pending') {
+    if (automation.privateReplyEnabled === 0 || !automation.openingDm || !reply.senderId) {
+      privateStatus = 'skipped';
+    } else if (
+      !(
+        await acquireSendPermission(db, {
+          actionType: 'private_reply',
+          automationId: automation.id,
+          automationDailyLimit: automation.dailyLimit,
+        })
+      ).allowed
+    ) {
+      privateStatus = 'skipped';
+    } else {
+      const res = await sendPrivateReply(metaClient, {
+        instagramAccountId: reply.instagramAccountId,
+        recipientId: reply.senderId,
+        text: automation.openingDm,
+        buttonText: automation.buttonText,
+        buttonUrl: automation.buttonUrl,
+      });
+      await recordAttempt(db, run.id, account.id, 'private_reply', attemptNumber, res);
+      if (res.ok) {
+        privateStatus = 'success';
+      } else if (res.failure && isRetryable(res.failure)) {
+        retryable = true;
+      } else if (
+        res.failure &&
+        res.failure.httpStatus === 400 &&
+        !PERMANENT_REASONS.has(res.failure.nonRetryableReason ?? '')
+      ) {
+        // 與留言 DM 相同：非永久性的 400 走重試路徑（Meta 對極新事件偶發暫時性 400）。
+        retryable = true;
+      } else {
+        privateStatus = 'failed';
+      }
+    }
+  }
+
+  // 10. 收尾
+  if (retryable && privateStatus === 'pending') {
+    const delay = nextRetryDelaySeconds(run.retryCount);
+    await db
+      .update(schema.automationRuns)
+      .set({
+        retryCount: run.retryCount + 1,
+        publicReplyStatus: 'skipped',
+        privateReplyStatus: privateStatus,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.automationRuns.id, run.id));
+    return { kind: 'retry', delaySeconds: delay, runId: run.id, reason: 'retryable_meta_error' };
+  }
+
+  const finalPrivate = privateStatus === 'pending' ? 'failed' : privateStatus;
+  const overall = finalPrivate === 'failed' ? 'completed_with_errors' : 'completed';
+  await db
+    .update(schema.automationRuns)
+    .set({
+      status: overall,
+      publicReplyStatus: 'skipped',
+      privateReplyStatus: finalPrivate,
+      completedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(schema.automationRuns.id, run.id));
+
+  return { kind: 'completed', runId: run.id, publicReplyStatus: 'skipped', privateReplyStatus: finalPrivate };
 }

@@ -1,7 +1,7 @@
 // Queue Consumer 進入點：把 Cloudflare Queue batch 逐則餵給引擎，並依結果 ack / retry。
 import type { MessageBatch } from '@cloudflare/workers-types';
 import type { AppBindings } from '../app';
-import { processCommentEvent, type EngineDeps } from '../automation/engine';
+import { processCommentEvent, processStoryReplyEvent, type EngineDeps } from '../automation/engine';
 import { MetaClient } from '../meta/client';
 import type { CommentEventMessage } from './producer';
 
@@ -20,7 +20,10 @@ export async function consumeCommentEvents(
 
   for (const msg of batch.messages) {
     try {
-      const outcome = await processCommentEvent(deps, msg.body);
+      const outcome =
+        msg.body.eventType === 'story_reply'
+          ? await processStoryReplyEvent(deps, msg.body)
+          : await processCommentEvent(deps, msg.body);
       if (outcome.kind === 'retry' && outcome.delaySeconds !== null) {
         msg.retry({ delaySeconds: outcome.delaySeconds });
       } else {
