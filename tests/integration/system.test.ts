@@ -106,3 +106,18 @@ describe('system control API', () => {
   });
 });
 
+describe('status — account info', () => {
+  it('returns the account username and profile picture', async () => {
+    sqlite
+      .prepare("UPDATE instagram_accounts SET username = 'octave', profile_picture_url = 'https://cdn/p.jpg'")
+      .run();
+    const status = await (await createApp().fetch(get('/status'), env)).json();
+    expect(status.account).toEqual({ username: 'octave', profilePictureUrl: 'https://cdn/p.jpg' });
+  });
+
+  it('returns null account when none is registered', async () => {
+    sqlite.prepare('DELETE FROM instagram_accounts').run();
+    const status = await (await createApp().fetch(get('/status'), env)).json();
+    expect(status.account).toBeNull();
+  });
+});

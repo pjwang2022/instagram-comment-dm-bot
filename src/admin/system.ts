@@ -69,6 +69,10 @@ export function createSystemRoutes() {
     return c.json({
       emergencyStop: settings.emergencyStop === 1,
       circuitBreakerStatus: accounts[0]?.circuitBreakerStatus ?? 'unknown',
+      // 首頁 IG 個人頁式頁首用。
+      account: accounts[0]
+        ? { username: accounts[0].username, profilePictureUrl: accounts[0].profilePictureUrl }
+        : null,
       tokenExpiresAt: accounts[0]?.tokenExpiresAt ?? null,
       lastWebhookReceivedAt: accounts[0]?.lastWebhookReceivedAt ?? null,
       today: {
