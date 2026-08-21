@@ -18,7 +18,10 @@
   },
   "assets": {
     "directory": "./admin/dist",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // 根路徑先進 Worker（302 → /admin）；不設的話 assets 會直接回 index.html，
+    // 但 SPA base 是 /admin，在 / 只會渲染空白頁。
+    "run_worker_first": ["/"]
   },
   // 一般 Variables（非機密）。預設值即可直接使用；本機開發可在 .dev.vars 覆寫。
   // 帳號 ID 與聯絡信箱都不需要設定：帳號由 access token 自動註冊（GET /me），

@@ -28,6 +28,10 @@ export type AppBindings = {
 export function createApp() {
   const app = new Hono<{ Bindings: AppBindings }>();
 
+  // 根路徑導向後台登入頁。靜態資產的 index.html 在 / 會渲染空白（SPA base 是 /admin），
+  // 因此 wrangler.jsonc 的 assets.run_worker_first 讓 / 先進 Worker、走這條 302。
+  app.get('/', (c) => c.redirect('/admin', 302));
+
   app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
   // 隱私政策頁（Meta App 上線審核要求提供公開網址）。
