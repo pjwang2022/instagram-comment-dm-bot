@@ -89,7 +89,8 @@ npm run deploy
    - Callback URL: `https://<your-domain>/api/webhooks/meta/instagram`
    - Verify token: the same value you stored as `WEBHOOK_VERIFY_TOKEN`
    - Subscribe to the **`comments`** field, and the **`messages`** field if you want story-reply automations (限時動態自動化).
-4. App Review requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (the contact email shown is your admin account's email).
+4. **Switch the app to Live (published) mode** — in Development mode, webhooks only fire for users with a role on the app, so comments from strangers won't trigger anything. Publishing requires a public privacy policy URL — this app serves one at `https://<your-domain>/privacy` (the contact email shown is your admin account's email).
+5. Full App Review / advanced access is NOT needed — that's only for serving other people's accounts; a self-hosted tool acting on your own authorized account works with standard access.
 
 #### Extra setup for story-reply automations（限時動態自動化）
 

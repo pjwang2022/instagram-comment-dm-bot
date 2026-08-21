@@ -88,7 +88,8 @@ npm run deploy
    - Callback URL：`https://<你的網域>/api/webhooks/meta/instagram`
    - Verify token：與 `WEBHOOK_VERIFY_TOKEN` secret 相同的值
    - 訂閱 **`comments`** 欄位；若要使用限時動態自動化，一併訂閱 **`messages`** 欄位。
-4. App 審核（App Review）需要公開的隱私政策網址——本專案內建於 `https://<你的網域>/privacy`（頁面顯示的聯絡信箱即你的管理者帳號 Email）。
+4. **把 App 切換為「發佈」（上線）狀態**——開發模式下，webhook 只會送 App 角色成員的事件，陌生人留言不會觸發。發佈需要公開的隱私政策網址，本專案內建於 `https://<你的網域>/privacy`（頁面顯示的聯絡信箱即你的管理者帳號 Email）。
+5. 不需要走 App 審核（App Review）／進階存取——那是服務其他人帳號才需要的流程；自用工具操作自己授權的帳號，標準存取即可。
 
 #### 限時動態自動化的額外設定
 
