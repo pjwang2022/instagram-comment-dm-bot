@@ -137,6 +137,7 @@ npm run lint && npm run typecheck
 
 ## 文件
 
+- [`docs/faq.md`](docs/faq.md) —— 常見問答：費用、合規、功能邊界、疑難排解。
 - [`spec.md`](spec.md) —— 完整技術規格：資料模型、API、比對規則、重試與熔斷語意。
 - [`CLAUDE.md`](CLAUDE.md) —— 給 AI coding agent 的初始化步驟與專案規則（Claude Code 會自動讀取）。
 

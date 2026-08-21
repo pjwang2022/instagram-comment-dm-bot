@@ -137,6 +137,7 @@ Note: `wrangler dev` does not enforce every production Workers limit (e.g. the 1
 
 ## Documentation
 
+- [`docs/faq.md`](docs/faq.md) — FAQ: costs, compliance, feature boundaries, troubleshooting (Traditional Chinese).
 - [`spec.md`](spec.md) — full technical spec: data model, APIs, matching rules, retry/circuit-breaker semantics (Traditional Chinese).
 - [`CLAUDE.md`](CLAUDE.md) — setup steps and project rules for AI coding agents (Claude Code reads this automatically).
 
