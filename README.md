@@ -15,7 +15,7 @@
 點按鈕後會依序發生：
 
 1. **複製本 repo** 到你自己的 GitHub（或 GitLab）帳號。
-2. **自動開通資源**——在你的 Cloudflare 帳號建立 D1 資料庫與 Queue（Queues 需要 **Workers Paid** 方案）。
+2. **自動開通資源**——在你的 Cloudflare 帳號建立 D1 資料庫與 Queue（免費方案即可；Queues 自 2026 年 2 月起開放免費方案）。
 3. **提示你填入四個 secrets**（清單見 [`.dev.vars.example`](.dev.vars.example)：`INSTAGRAM_APP_SECRET`、`WEBHOOK_VERIFY_TOKEN`、`INSTAGRAM_ACCOUNT_ACCESS_TOKEN`、`ADMIN_SESSION_SECRET`）。
 4. **建置並部署**，同時設好 push 即自動重新部署：之後改你那份 repo、push 就會自動上線。
 
@@ -56,7 +56,7 @@ Cron：每日貼文同步 · Token 到期檢查
 
 ## 前置需求
 
-- **Cloudflare 帳號（Workers Paid 方案）**（Queues 需要付費方案），並已完成 `npx wrangler login`。
+- **Cloudflare 帳號**（免費方案即可——Queues 免費版每日 10,000 次佇列操作、訊息保留 24 小時，個人帳號用量綽綽有餘；重度用量再升級 Workers Paid），並已完成 `npx wrangler login`。
 - **Meta 開發者 App**（已加入 Instagram 產品）與一個你管理的 **Instagram 專業帳號**。
 - **Node.js 20+**。
 

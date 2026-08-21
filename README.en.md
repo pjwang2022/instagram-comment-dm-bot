@@ -15,7 +15,7 @@ Built for a single admin managing their own Instagram Professional account. No t
 Clicking the button will:
 
 1. **Copy this repo** into your own GitHub (or GitLab) account.
-2. **Provision the resources** in your Cloudflare account — the D1 database and the Queue (Queues requires the **Workers Paid** plan).
+2. **Provision the resources** in your Cloudflare account — the D1 database and the Queue (the free plan is enough; Queues has been available on the Workers Free plan since Feb 2026).
 3. **Prompt you for the four secrets** listed in [`.dev.vars.example`](.dev.vars.example) (`INSTAGRAM_APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `INSTAGRAM_ACCOUNT_ACCESS_TOKEN`, `ADMIN_SESSION_SECRET`).
 4. **Build & deploy**, and set up push-to-deploy: every push to your copy redeploys automatically.
 
@@ -56,7 +56,7 @@ Stack: Cloudflare Workers · Hono · D1 (Drizzle ORM) · Queues · Cron Triggers
 
 ## Prerequisites
 
-- **Cloudflare account on the Workers Paid plan** (Queues requires it), with `wrangler` logged in (`npx wrangler login`).
+- **Cloudflare account** (the free plan works — free-tier Queues allows 10,000 operations/day with 24h message retention, plenty for a personal account; upgrade to Workers Paid for heavy volume), with `wrangler` logged in (`npx wrangler login`).
 - **Meta developer app** with the Instagram product, and an **Instagram Professional account** you manage.
 - **Node.js 20+**.
 
