@@ -336,6 +336,19 @@ export function HomePage() {
     void load();
   }, [load]);
 
+  // 操作類 API 的統一錯誤處理：session 過期（401）導回登入頁；其他錯誤顯示在頂端
+  // 並自動捲上去——使用者常在頁面下方操作，錯誤固定顯示在頂端會完全看不到，
+  // 造成「按了沒反應」的錯覺（實際案例：session 過期後按貼文 toggle 無任何回饋）。
+  function handleActionError(e: unknown) {
+    const err = e as ApiError;
+    if (err.status === 401) {
+      navigate('/login');
+      return;
+    }
+    setError(err.message ?? '發生錯誤，請稍後再試。');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   async function sync() {
     setSyncing(true);
     setError(null);
@@ -357,7 +370,7 @@ export function HomePage() {
       setSyncErrors(summary.errors ?? []);
       await load();
     } catch (e) {
-      setError((e as ApiError).message);
+      handleActionError(e);
     } finally {
       setSyncing(false);
     }
@@ -365,13 +378,21 @@ export function HomePage() {
 
   async function toggleEmergency() {
     if (!status) return;
-    await apiPost(status.emergencyStop ? '/api/admin/system/resume' : '/api/admin/system/emergency-stop', {});
-    void load();
+    try {
+      await apiPost(status.emergencyStop ? '/api/admin/system/resume' : '/api/admin/system/emergency-stop', {});
+      await load();
+    } catch (e) {
+      handleActionError(e);
+    }
   }
 
   async function resetCircuitBreaker() {
-    await apiPost('/api/admin/system/circuit-breaker/reset', {});
-    void load();
+    try {
+      await apiPost('/api/admin/system/circuit-breaker/reset', {});
+      await load();
+    } catch (e) {
+      handleActionError(e);
+    }
   }
 
   // 貼文右上角的自動化開關：active ↔ paused。草稿啟用失敗（設定不完整）時提示點進去補。
@@ -398,11 +419,12 @@ export function HomePage() {
       await load();
     } catch (e) {
       const err = e as ApiError;
-      setError(
-        err.status === 422
-          ? '無法啟用：這則自動化的設定不完整（點進貼文檢查關鍵字與回覆內容）'
-          : err.message,
-      );
+      if (err.status === 422) {
+        setError('無法啟用：這則自動化的設定不完整（點進貼文檢查關鍵字與回覆內容）');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        handleActionError(e);
+      }
     } finally {
       setTogglingId(null);
     }

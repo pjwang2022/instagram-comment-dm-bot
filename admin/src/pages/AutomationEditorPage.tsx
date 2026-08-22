@@ -159,6 +159,10 @@ export function AutomationEditorPage() {
       }
       setNotice('已儲存 ✓');
     } catch (e) {
+      if ((e as ApiError).status === 401) {
+        navigate('/login');
+        return;
+      }
       setError((e as ApiError).message ?? '儲存失敗');
     } finally {
       setBusy(false);
@@ -179,6 +183,10 @@ export function AutomationEditorPage() {
       setNotice('已啟用 ✓');
     } catch (e) {
       const err = e as ApiError & { reasons?: string[] };
+      if (err.status === 401) {
+        navigate('/login');
+        return;
+      }
       if (err.status === 422 && err.reasons) setActivationErrors(err.reasons);
       else setError(err.message ?? '啟用失敗');
     } finally {
@@ -194,6 +202,10 @@ export function AutomationEditorPage() {
       setStatus('paused');
       setNotice('已暫停');
     } catch (e) {
+      if ((e as ApiError).status === 401) {
+        navigate('/login');
+        return;
+      }
       setError((e as ApiError).message);
     } finally {
       setBusy(false);
