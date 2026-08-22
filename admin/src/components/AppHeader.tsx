@@ -1,7 +1,7 @@
 // 共用頁首：品牌（點擊回首頁）＋右側「新增自動化」下拉與使用者頭像選單（email／帳號設定／登出）。
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
-import { apiGet, apiPost } from '../api/client';
+import { apiGet, apiPost, type ApiError } from '../api/client';
 
 type OpenMenu = 'new' | 'user' | null;
 
@@ -15,6 +15,29 @@ export function AppHeader() {
       .then((r) => setEmail(r.email))
       .catch(() => setEmail(''));
   }, []);
+
+  // session 過期自動登出：每 5 分鐘＋分頁重新取得焦點時檢查一次，
+  // 過期（401）就導回登入頁——避免頁面停留在過期的舊資料上，操作看似沒反應。
+  useEffect(() => {
+    let cancelled = false;
+    async function checkSession() {
+      try {
+        await apiGet('/api/admin/auth/me');
+      } catch (e) {
+        if (!cancelled && (e as ApiError).status === 401) navigate('/login?expired=1');
+      }
+    }
+    const timer = setInterval(checkSession, 5 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void checkSession();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [navigate]);
 
   async function logout() {
     try {

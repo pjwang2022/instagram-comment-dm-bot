@@ -2,13 +2,16 @@
 // 首次啟動（admin_users 為空）時改顯示「建立管理者帳號」表單，讓一鍵部署
 // 的使用者不需開 terminal 即可完成後台設定。
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { apiGet, apiPost, type ApiError } from '../api/client';
 
 const MIN_PASSWORD_LENGTH = 12;
 
 export function LoginPage() {
   const navigate = useNavigate();
+  // session 過期被自動導回時顯示提示（AppHeader 的過期檢查會帶 ?expired=1）。
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('expired') === '1';
   const [mode, setMode] = useState<'loading' | 'login' | 'setup'>('loading');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,6 +74,12 @@ export function LoginPage() {
             ? '首次啟動：建立唯一的管理者帳號。完成後即自動登入，此頁不會再出現。'
             : '請使用管理者帳號登入以管理自動化與查看紀錄。'}
         </p>
+
+        {sessionExpired && !error ? (
+          <div className="alert alert-danger alerts-block" role="status">
+            登入已過期（有效期 8 小時），請重新登入。
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit}>
           <div className="form-field">
