@@ -13,3 +13,7 @@ tmp/
 
 admin-insert.sql
 scratch-*.sql
+
+# 教學文件（含個人後台截圖，勿推上公開 repo）
+部署教學.docx
+*.docx
