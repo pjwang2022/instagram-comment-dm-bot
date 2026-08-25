@@ -16,24 +16,35 @@ beforeEach(() => {
 });
 
 describe('GET /privacy', () => {
-  it('shows the admin account email as the contact address', async () => {
+  it('uses the Instagram account DM as the contact method (no email exposed)', async () => {
     const db = drizzle(sqlite, { schema });
     await db.insert(schema.adminUsers).values({
       id: 'admin-1',
       email: 'owner@example.com',
       passwordHash: 'x',
     });
+    await db.insert(schema.instagramAccounts).values({
+      id: 'acct',
+      instagramAccountId: 'ig-acct',
+      username: 'myshop',
+    });
 
     const app = createApp();
     const res = await app.fetch(new Request('https://igbot.example.com/privacy'), env);
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain('owner@example.com');
+    const html = await res.text();
+    expect(html).toContain('@myshop');
+    expect(html).toContain('https://www.instagram.com/myshop');
+    // 管理者登入 Email 是憑證的一半，不得出現在公開頁面。
+    expect(html).not.toContain('owner@example.com');
   });
 
-  it('still renders with a fallback before any admin exists', async () => {
+  it('still renders with a generic fallback before the account is synced', async () => {
     const app = createApp();
     const res = await app.fetch(new Request('https://igbot.example.com/privacy'), env);
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain('（尚未設定）');
+    const html = await res.text();
+    expect(html).toContain('Instagram 帳號的私訊');
+    expect(html).not.toContain('@example.com');
   });
 });

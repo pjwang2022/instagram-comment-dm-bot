@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createAdminRoutes } from './admin/routes';
 import { createDb } from './database/client';
-import { adminUsers } from './database/schema';
+import { instagramAccounts } from './database/schema';
 import type { CommentEventMessage } from './queue/producer';
 import { createWebhookRoutes } from './webhook/routes';
 
@@ -35,12 +35,20 @@ export function createApp() {
   app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
   // 隱私政策頁（Meta App 上線審核要求提供公開網址）。
-  // 聯絡信箱直接取自管理者帳號（首次設定表單建立的 Email），不需額外設定。
+  // 聯絡方式用 Instagram 帳號私訊（自動取自已註冊的帳號），不顯示管理者 Email——
+  // 那是登入憑證的一半，公開等於送攻擊者半組帳密、也成為釣魚目標。
   app.get('/privacy', async (c) => {
-    let contactEmail = '（尚未設定）';
+    let contactHtml = '請透過本服務綁定之 Instagram 帳號的私訊（DM）聯絡我們。';
     try {
-      const admins = await createDb(c.env.DB).select({ email: adminUsers.email }).from(adminUsers).limit(1);
-      if (admins[0]?.email) contactEmail = admins[0].email;
+      const accounts = await createDb(c.env.DB)
+        .select({ username: instagramAccounts.username })
+        .from(instagramAccounts)
+        .limit(1);
+      const username = accounts[0]?.username;
+      if (username) {
+        const safe = username.replace(/[^A-Za-z0-9._]/g, '');
+        contactHtml = `Instagram 私訊：<a href="https://www.instagram.com/${safe}/" rel="noopener">@${safe}</a>`;
+      }
     } catch {
       // 資料庫尚未就緒時仍應能顯示隱私政策頁。
     }
@@ -58,7 +66,7 @@ export function createApp() {
 <li>如希望刪除與您相關的紀錄，請透過下方聯絡方式提出，我們將於合理期間內刪除。</li>
 </ul>
 <h2>聯絡方式</h2>
-<p>Email：${contactEmail}</p>
+<p>${contactHtml}</p>
 <p>更新日期：2026-07-29</p>
 </body></html>`);
   });
