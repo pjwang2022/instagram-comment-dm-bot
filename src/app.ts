@@ -1,7 +1,5 @@
 import { Hono } from 'hono';
 import { createAdminRoutes } from './admin/routes';
-import { createDb } from './database/client';
-import { instagramAccounts } from './database/schema';
 import type { CommentEventMessage } from './queue/producer';
 import { createWebhookRoutes } from './webhook/routes';
 
@@ -22,6 +20,8 @@ export type AppBindings = {
   META_GRAPH_API_VERSION: string;
   META_BASE_URL?: string;
   APP_ENV: string;
+  // 隱私政策頁的自訂聯絡方式（選填，純文字）。未設定時顯示通用文字，不點名任何身分。
+  PRIVACY_CONTACT?: string;
   LOG_LEVEL: string;
 };
 
@@ -35,23 +35,18 @@ export function createApp() {
   app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
   // 隱私政策頁（Meta App 上線審核要求提供公開網址）。
-  // 聯絡方式用 Instagram 帳號私訊（自動取自已註冊的帳號），不顯示管理者 Email——
-  // 那是登入憑證的一半，公開等於送攻擊者半組帳密、也成為釣魚目標。
-  app.get('/privacy', async (c) => {
-    let contactHtml = '請透過本服務綁定之 Instagram 帳號的私訊（DM）聯絡我們。';
-    try {
-      const accounts = await createDb(c.env.DB)
-        .select({ username: instagramAccounts.username })
-        .from(instagramAccounts)
-        .limit(1);
-      const username = accounts[0]?.username;
-      if (username) {
-        const safe = username.replace(/[^A-Za-z0-9._]/g, '');
-        contactHtml = `Instagram 私訊：<a href="https://www.instagram.com/${safe}/" rel="noopener">@${safe}</a>`;
-      }
-    } catch {
-      // 資料庫尚未就緒時仍應能顯示隱私政策頁。
-    }
+  // 聯絡方式預設只顯示通用文字，「不」點名任何身分：
+  // - 管理者 Email 是登入憑證的一半，公開等於送攻擊者半組帳密、也成為釣魚目標。
+  // - IG 帳號名會讓任何知道網址的訪客把這個部署連結到你的身分；而真正需要
+  //   聯絡的人（收到私訊的留言者）本來就知道帳號是誰，不需要在此點名。
+  // 部署者想提供具體聯絡管道時，設定 PRIVACY_CONTACT 變數（純文字，會做 HTML escape）。
+  app.get('/privacy', (c) => {
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const custom = c.env.PRIVACY_CONTACT?.trim();
+    const contactHtml = custom
+      ? escapeHtml(custom)
+      : '請透過本服務所綁定之 Instagram 帳號的私訊（DM）聯絡我們（若你曾收到本服務的訊息，直接回覆該對話即可）。';
     return c.html(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>隱私政策 — Instagram Comment DM Bot</title><style>body{font-family:system-ui,-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;max-width:680px;margin:40px auto;padding:0 20px;line-height:1.7;color:#0f172a}h1{font-size:24px}h2{font-size:17px;margin-top:28px}p,li{font-size:15px;color:#334155}</style></head><body>
 <h1>隱私政策</h1>
 <p>本服務（Instagram Comment DM Bot）為單一管理者自用的 Instagram 留言自動回覆工具。</p>
